@@ -1,47 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readMusic, writeMusic } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
-interface MusicStock {
-  id: number;
-  store_id: number;
-  title: string;
-  mood: string;
-  bpm: number | null;
-  suitable_scene: string;
-  drive_url: string;
-  used_in: string;
-  notes: string;
-  created_at: string;
-}
-
-// GET /api/music?store_id=1
 export async function GET(req: NextRequest) {
   const storeId = req.nextUrl.searchParams.get('store_id');
-  const all = readMusic() as MusicStock[];
-  const filtered = storeId ? all.filter(m => m.store_id === Number(storeId)) : all;
-  return NextResponse.json(filtered);
+  let query = supabase.from('music_stocks').select('*').order('id');
+  if (storeId) query = query.eq('store_id', Number(storeId));
+  const { data } = await query;
+  return NextResponse.json(data || []);
 }
 
-// POST /api/music
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const all = readMusic() as MusicStock[];
-  const nextId = all.reduce((max, m) => Math.max(max, m.id), 0) + 1;
-  const stock: MusicStock = {
-    id: nextId,
-    ...body,
-    used_in: '',
-    created_at: new Date().toISOString(),
-  };
-  all.push(stock);
-  writeMusic(all);
-  return NextResponse.json(stock, { status: 201 });
+  const { data, error } = await supabase.from('music_stocks').insert(body).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json(data, { status: 201 });
 }
 
-// DELETE /api/music?id=1
 export async function DELETE(req: NextRequest) {
   const id = Number(req.nextUrl.searchParams.get('id'));
-  const all = (readMusic() as MusicStock[]).filter(m => m.id !== id);
-  writeMusic(all);
+  await supabase.from('music_stocks').delete().eq('id', id);
   return NextResponse.json({ ok: true });
 }

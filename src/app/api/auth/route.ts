@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { register, login, logout, getSessionUser, SESSION_COOKIE, SESSION_DURATION_MS } from '@/lib/auth';
 
-// GET /api/auth - get current user
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ user: null }, { status: 401 });
   return NextResponse.json({ user });
 }
 
-// POST /api/auth - login or register
 export async function POST(req: NextRequest) {
   const { action, username, password, display_name } = await req.json();
 
@@ -16,7 +14,6 @@ export async function POST(req: NextRequest) {
     const result = await register(username, password, display_name || username);
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-    // Auto-login after register
     const loginResult = await login(username, password);
     if (!loginResult.ok) return NextResponse.json({ error: loginResult.error }, { status: 400 });
 
@@ -47,7 +44,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ error: 'invalid action' }, { status: 400 });
 }
 
-// DELETE /api/auth - logout
 export async function DELETE(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (token) await logout(token);

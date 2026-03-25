@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { cookies } from 'next/headers';
-import { readUsers, writeUsers, readSessions, writeSessions, type User } from './db';
+import { supabase } from './supabase';
 
 const SESSION_COOKIE = 'session_token';
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -21,71 +21,74 @@ function generateToken(): string {
   return crypto.randomBytes(32).toString('hex');
 }
 
-export async function register(username: string, password: string, displayName: string): Promise<{ ok: true; user: Omit<User, 'password_hash'> } | { ok: false; error: string }> {
+interface SafeUser {
+  id: number;
+  username: string;
+  display_name: string;
+  created_at: string;
+}
+
+export async function register(username: string, password: string, displayName: string): Promise<{ ok: true; user: SafeUser } | { ok: false; error: string }> {
   if (!username || username.length < 2) return { ok: false, error: 'ユーザー名は2文字以上で入力してください' };
   if (!password || password.length < 4) return { ok: false, error: 'パスワードは4文字以上で入力してください' };
 
-  const users = readUsers();
-  if (users.find(u => u.username === username)) {
-    return { ok: false, error: 'このユーザー名は既に使われています' };
-  }
+  const { data: existing } = await supabase.from('users').select('id').eq('username', username).single();
+  if (existing) return { ok: false, error: 'このユーザー名は既に使われています' };
 
-  const nextId = users.reduce((max, u) => Math.max(max, u.id), 0) + 1;
-  const user: User = {
-    id: nextId,
+  const { data: user, error } = await supabase.from('users').insert({
     username,
     password_hash: hashPassword(password),
     display_name: displayName || username,
-    created_at: new Date().toISOString(),
-  };
-  users.push(user);
-  writeUsers(users);
+  }).select('id, username, display_name, created_at').single();
 
-  const { password_hash: _, ...safe } = user;
-  return { ok: true, user: safe };
+  if (error || !user) return { ok: false, error: 'アカウント作成に失敗しました' };
+  return { ok: true, user };
 }
 
-export async function login(username: string, password: string): Promise<{ ok: true; token: string; user: Omit<User, 'password_hash'> } | { ok: false; error: string }> {
-  const users = readUsers();
-  const user = users.find(u => u.username === username);
+export async function login(username: string, password: string): Promise<{ ok: true; token: string; user: SafeUser } | { ok: false; error: string }> {
+  const { data: user } = await supabase.from('users').select('*').eq('username', username).single();
   if (!user || !verifyPassword(password, user.password_hash)) {
     return { ok: false, error: 'ユーザー名またはパスワードが正しくありません' };
   }
 
   const token = generateToken();
-  const sessions = readSessions();
-  sessions.push({
+  await supabase.from('sessions').insert({
     token,
     user_id: user.id,
-    created_at: new Date().toISOString(),
     expires_at: new Date(Date.now() + SESSION_DURATION_MS).toISOString(),
   });
-  writeSessions(sessions);
 
-  const { password_hash: _, ...safe } = user;
-  return { ok: true, token, user: safe };
+  return {
+    ok: true,
+    token,
+    user: { id: user.id, username: user.username, display_name: user.display_name, created_at: user.created_at },
+  };
 }
 
 export async function logout(token: string): Promise<void> {
-  const sessions = readSessions().filter(s => s.token !== token);
-  writeSessions(sessions);
+  await supabase.from('sessions').delete().eq('token', token);
 }
 
-export async function getSessionUser(): Promise<Omit<User, 'password_hash'> | null> {
+export async function getSessionUser(): Promise<SafeUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const sessions = readSessions();
-  const session = sessions.find(s => s.token === token && new Date(s.expires_at) > new Date());
-  if (!session) return null;
+  const { data: session } = await supabase
+    .from('sessions')
+    .select('user_id, expires_at')
+    .eq('token', token)
+    .single();
 
-  const users = readUsers();
-  const user = users.find(u => u.id === session.user_id);
-  if (!user) return null;
+  if (!session || new Date(session.expires_at) < new Date()) return null;
 
-  const { password_hash: _, ...safe } = user;
-  return safe;
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, username, display_name, created_at')
+    .eq('id', session.user_id)
+    .single();
+
+  return user || null;
 }
 
 export { SESSION_COOKIE, SESSION_DURATION_MS };

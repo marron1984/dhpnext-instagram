@@ -1,41 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readProjects, writeProjects } from '@/lib/db';
-
-interface ChecklistItem {
-  id: number;
-  item_text: string;
-  checked: boolean;
-}
-
-interface Project {
-  id: number;
-  store_id: number;
-  year: number;
-  month: number;
-  week_number: number;
-  week_role: string;
-  theme: string;
-  target: string;
-  appeal_axis: string;
-  video_duration: string;
-  tone: string;
-  status: string;
-  monday_done: boolean;
-  tuesday_done: boolean;
-  wednesday_done: boolean;
-  thursday_done: boolean;
-  draft_status: string;
-  checkback_status: string;
-  final_status: string;
-  caption: string;
-  hashtags: string;
-  bgm_direction: string;
-  video_structure: string;
-  terop_plan: string;
-  notes: string;
-  checklist: ChecklistItem[];
-  created_at: string;
-}
+import { supabase } from '@/lib/supabase';
 
 const CHECKLIST_DEFAULTS = [
   '店舗名の表記ゆれがないか',
@@ -48,7 +12,20 @@ const CHECKLIST_DEFAULTS = [
   'フォントが中国語系に見えないか',
 ];
 
-function deriveStatus(p: Project): string {
+interface ProjectRow {
+  id: number;
+  monday_done: boolean;
+  tuesday_done: boolean;
+  wednesday_done: boolean;
+  thursday_done: boolean;
+  draft_status: string;
+  checkback_status: string;
+  final_status: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+function deriveStatus(p: ProjectRow): string {
   if (p.final_status === 'completed') return 'completed';
   if (p.checkback_status === 'in_progress' || p.checkback_status === 'completed') return 'review';
   if (p.monday_done || p.tuesday_done || p.wednesday_done || p.thursday_done ||
@@ -56,7 +33,7 @@ function deriveStatus(p: Project): string {
   return 'planning';
 }
 
-// GET /api/projects?year=2026&month=4&store_id=1
+// GET /api/projects
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const year = searchParams.get('year');
@@ -64,98 +41,86 @@ export async function GET(req: NextRequest) {
   const store_id = searchParams.get('store_id');
   const id = searchParams.get('id');
 
-  const all = readProjects() as Project[];
-
   if (id) {
-    const p = all.find(p => p.id === Number(id));
-    return NextResponse.json(p || null);
+    const { data: project } = await supabase.from('projects').select('*').eq('id', Number(id)).single();
+    if (!project) return NextResponse.json(null);
+    const { data: checklist } = await supabase.from('checklist_items').select('*').eq('project_id', project.id).order('id');
+    return NextResponse.json({ ...project, checklist: checklist || [] });
   }
 
-  const filtered = all.filter(p => {
-    if (year && p.year !== Number(year)) return false;
-    if (month && p.month !== Number(month)) return false;
-    if (store_id && p.store_id !== Number(store_id)) return false;
-    return true;
-  });
-  return NextResponse.json(filtered);
+  let query = supabase.from('projects').select('*');
+  if (year) query = query.eq('year', Number(year));
+  if (month) query = query.eq('month', Number(month));
+  if (store_id) query = query.eq('store_id', Number(store_id));
+  query = query.order('id');
+
+  const { data: projects } = await query;
+  if (!projects || projects.length === 0) return NextResponse.json([]);
+
+  const ids = projects.map(p => p.id);
+  const { data: allChecklist } = await supabase.from('checklist_items').select('*').in('project_id', ids).order('id');
+
+  const result = projects.map(p => ({
+    ...p,
+    checklist: (allChecklist || []).filter(c => c.project_id === p.id),
+  }));
+
+  return NextResponse.json(result);
 }
 
-// POST /api/projects - create or bulk create
+// POST /api/projects
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const all = readProjects() as Project[];
-  const nextId = all.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-  let nextCheckId = all.reduce((max, p) => Math.max(max, p.checklist?.reduce((cm, c) => Math.max(cm, c.id), 0) || 0), 0) + 1;
-
-  // Support array for bulk create
   const items: Array<{ store_id: number; year: number; month: number; week_number: number; week_role: string; theme: string }> = Array.isArray(body) ? body : [body];
-  const created: Project[] = [];
 
-  items.forEach((data, i) => {
-    const checklist: ChecklistItem[] = CHECKLIST_DEFAULTS.map((text, ci) => ({
-      id: nextCheckId + ci,
-      item_text: text,
-      checked: false,
-    }));
-    nextCheckId += CHECKLIST_DEFAULTS.length;
-
-    const project: Project = {
-      id: nextId + i,
+  const created = [];
+  for (const data of items) {
+    const { data: project, error } = await supabase.from('projects').insert({
       store_id: data.store_id,
       year: data.year,
       month: data.month,
       week_number: data.week_number,
       week_role: data.week_role,
       theme: data.theme,
-      target: '',
-      appeal_axis: '',
-      video_duration: '15-30秒',
-      tone: '',
-      status: 'planning',
-      monday_done: false,
-      tuesday_done: false,
-      wednesday_done: false,
-      thursday_done: false,
-      draft_status: 'pending',
-      checkback_status: 'pending',
-      final_status: 'pending',
-      caption: '',
-      hashtags: '',
-      bgm_direction: '',
-      video_structure: '',
-      terop_plan: '',
-      notes: '',
-      checklist,
-      created_at: new Date().toISOString(),
-    };
-    all.push(project);
-    created.push(project);
-  });
+    }).select().single();
 
-  writeProjects(all);
+    if (error || !project) continue;
+
+    const checklistRows = CHECKLIST_DEFAULTS.map(text => ({
+      project_id: project.id,
+      item_text: text,
+      checked: false,
+    }));
+    await supabase.from('checklist_items').insert(checklistRows);
+
+    const { data: checklist } = await supabase.from('checklist_items').select('*').eq('project_id', project.id).order('id');
+    created.push({ ...project, checklist: checklist || [] });
+  }
+
   return NextResponse.json(created, { status: 201 });
 }
 
-// PUT /api/projects - update
+// PUT /api/projects
 export async function PUT(req: NextRequest) {
-  const { id, ...updates } = await req.json();
-  const all = readProjects() as Project[];
-  const idx = all.findIndex(p => p.id === id);
-  if (idx === -1) return NextResponse.json({ error: 'not found' }, { status: 404 });
+  const { id, checklist: _cl, ...updates } = await req.json();
 
-  const merged = { ...all[idx], ...updates } as Project;
+  // Derive status if not explicitly set
   if (!updates.status) {
-    merged.status = deriveStatus(merged);
+    const { data: current } = await supabase.from('projects').select('*').eq('id', id).single();
+    if (current) {
+      const merged = { ...current, ...updates } as ProjectRow;
+      updates.status = deriveStatus(merged);
+    }
   }
-  all[idx] = merged;
-  writeProjects(all);
-  return NextResponse.json(merged);
+
+  const { data, error } = await supabase.from('projects').update(updates).eq('id', id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json(data);
 }
 
-// DELETE /api/projects?id=1
+// DELETE /api/projects
 export async function DELETE(req: NextRequest) {
   const id = Number(req.nextUrl.searchParams.get('id'));
-  const all = (readProjects() as Project[]).filter(p => p.id !== id);
-  writeProjects(all);
+  await supabase.from('projects').delete().eq('id', id);
   return NextResponse.json({ ok: true });
 }
