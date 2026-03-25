@@ -7,10 +7,13 @@ export const WEEK_ROLES = [
 ] as const;
 
 export const WEEKLY_SCHEDULE = [
-  { day: '月曜', tasks: 'テーマ決定、素材選定、レポジトリ作成' },
-  { day: '火曜', tasks: 'Claudeへ初回指示、インデックス作成、初稿生成' },
-  { day: '水曜', tasks: 'CheckBack、修正、再生成' },
-  { day: '木曜', tasks: '最終確認、投稿セット完成、21:00投稿' },
+  { day: '月曜', tasks: '初稿提出' },
+  { day: '火曜', tasks: 'チェックバック' },
+  { day: '水曜', tasks: '納品日' },
+  { day: '木曜', tasks: '投稿（21:00）' },
+  { day: '金曜', tasks: '【次週分】テーマ決定、素材選定、レポジトリ作成' },
+  { day: '土曜', tasks: '【次週分】Claudeへ初回指示、インデックス作成、初稿作成' },
+  { day: '日曜', tasks: '【次週分】提出前チェック' },
 ] as const;
 
 export const CHECKLIST_ITEMS = [

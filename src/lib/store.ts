@@ -184,11 +184,11 @@ export function createProject(data: {
 }
 
 function deriveStatus(p: Project): string {
-  // 完成納品が完了 → 完了
+  // 水曜納品完了 → 完了
   if (p.final_status === 'completed') return 'completed';
-  // CheckBackが進行中以上 → レビュー中
+  // 火曜チェックバック進行中以上 → レビュー中
   if (p.checkback_status === 'in_progress' || p.checkback_status === 'completed') return 'review';
-  // いずれかの日次チェックがON or 初稿が進行中以上 → 制作中
+  // 月曜初稿提出 or いずれかの日次チェックがON → 制作中
   if (p.monday_done || p.tuesday_done || p.wednesday_done || p.thursday_done ||
       p.draft_status === 'in_progress' || p.draft_status === 'completed') return 'in_progress';
   return 'planning';

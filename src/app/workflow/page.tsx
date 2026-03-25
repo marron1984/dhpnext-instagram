@@ -4,16 +4,16 @@ import { useEffect, useState, useCallback } from 'react';
 import { getStores, getProjects, updateProject, type Store, type Project } from '@/lib/store';
 
 const DAYS = [
-  { key: 'monday_done' as const, label: '月曜', desc: 'テーマ決定・素材選定・レポジトリ作成' },
-  { key: 'tuesday_done' as const, label: '火曜', desc: 'Claude初回指示・インデックス・初稿生成' },
-  { key: 'wednesday_done' as const, label: '水曜', desc: 'CheckBack・修正・再生成' },
-  { key: 'thursday_done' as const, label: '木曜', desc: '最終確認・投稿セット完成・21:00投稿' },
+  { key: 'monday_done' as const, label: '月曜', desc: '初稿提出' },
+  { key: 'tuesday_done' as const, label: '火曜', desc: 'チェックバック' },
+  { key: 'wednesday_done' as const, label: '水曜', desc: '納品日' },
+  { key: 'thursday_done' as const, label: '木曜', desc: '投稿（21:00）' },
 ];
 
 const MILESTONES = [
-  { key: 'draft_status' as const, label: '初稿納品', desc: '素材選定、動画構成、テロップ初稿、キャプション初稿、ハッシュタグ初稿' },
-  { key: 'checkback_status' as const, label: 'CheckBack', desc: '誤字、文脈、トーン、導線、店の格に合うかを確認' },
-  { key: 'final_status' as const, label: '完成納品', desc: '最終動画、最終キャプション、最終ハッシュタグ、保存先整理' },
+  { key: 'draft_status' as const, label: '初稿提出', desc: '月曜：動画構成、テロップ、キャプション、ハッシュタグの初稿を提出' },
+  { key: 'checkback_status' as const, label: 'チェックバック', desc: '火曜：誤字、文脈、トーン、導線、店の格に合うかを確認・修正' },
+  { key: 'final_status' as const, label: '納品完了', desc: '水曜：最終動画、最終キャプション、最終ハッシュタグ、保存先整理' },
 ];
 
 export default function WorkflowPage() {
