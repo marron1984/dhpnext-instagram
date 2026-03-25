@@ -1,33 +1,32 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getStores, getMusicStocks, addMusicStock, deleteMusicStock, type Store, type MusicStock } from '@/lib/store';
+import { getStores, fetchMusicStocks, addMusicStock, deleteMusicStock, type Store, type MusicStock } from '@/lib/store';
 
 export default function MusicPage() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores] = useState<Store[]>(getStores());
   const [music, setMusic] = useState<MusicStock[]>([]);
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', drive_url: '', notes: '' });
 
-  const loadData = useCallback(() => {
-    setStores(getStores());
-    setMusic(getMusicStocks(storeFilter === 'all' ? undefined : Number(storeFilter)));
+  const loadData = useCallback(async () => {
+    setMusic(await fetchMusicStocks(storeFilter === 'all' ? undefined : Number(storeFilter)));
   }, [storeFilter]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addMusicStock({ ...form, store_id: Number(form.store_id), bpm: form.bpm ? Number(form.bpm) : null });
+    await addMusicStock({ ...form, store_id: Number(form.store_id), bpm: form.bpm ? Number(form.bpm) : null });
     setForm({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', drive_url: '', notes: '' });
     setShowForm(false);
     loadData();
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('この音楽ストックを削除しますか？')) return;
-    deleteMusicStock(id);
+    await deleteMusicStock(id);
     loadData();
   };
 

@@ -64,45 +64,7 @@ const STORES: Store[] = [
   { id: 4, name: 'おでんスタンド', slug: 'odenstand', main_tone: '軽快・親しみ・ぬくもり', strong_values: '気軽さ、美味しさ、ちょい飲み導線', avoid: '高級店のような重さ、説明過多', music_tone: '軽快、ぬくもり、カジュアル' },
 ];
 
-const CHECKLIST_DEFAULTS = [
-  '店舗名の表記ゆれがないか',
-  '漢字、料理名、地名に誤字がないか',
-  '日本語として不自然な表現がないか',
-  'テロップ量が多すぎないか',
-  '店の格と動画トーンが一致しているか',
-  '画像と文言の整合性が取れているか',
-  '予約や来店につながる導線が明確か',
-  'フォントが中国語系に見えないか',
-];
-
-function getItem<T>(key: string, fallback: T): T {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function setItem<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(key, JSON.stringify(value));
-}
-
-let nextProjectId = 0;
-let nextMusicId = 0;
-let nextCheckId = 0;
-
-function ensureIds() {
-  const projects = getItem<Project[]>('projects', []);
-  const music = getItem<MusicStock[]>('music', []);
-  nextProjectId = projects.reduce((max, p) => Math.max(max, p.id), 0) + 1;
-  nextMusicId = music.reduce((max, m) => Math.max(max, m.id), 0) + 1;
-  nextCheckId = projects.reduce((max, p) => Math.max(max, p.checklist.reduce((cm, c) => Math.max(cm, c.id), 0)), 0) + 1;
-}
-
-// --- Stores ---
+// --- Stores (static) ---
 export function getStores(): Store[] {
   return STORES;
 }
@@ -111,123 +73,85 @@ export function getStore(id: number): Store | undefined {
   return STORES.find(s => s.id === id);
 }
 
-// --- Projects ---
-export function getProjects(filter?: { year?: number; month?: number; store_id?: number }): Project[] {
-  const all = getItem<Project[]>('projects', []);
-  return all.filter(p => {
-    if (filter?.year && p.year !== filter.year) return false;
-    if (filter?.month && p.month !== filter.month) return false;
-    if (filter?.store_id && p.store_id !== filter.store_id) return false;
-    return true;
-  });
+// --- Projects (API) ---
+export async function fetchProjects(filter?: { year?: number; month?: number; store_id?: number }): Promise<Project[]> {
+  const params = new URLSearchParams();
+  if (filter?.year) params.set('year', String(filter.year));
+  if (filter?.month) params.set('month', String(filter.month));
+  if (filter?.store_id) params.set('store_id', String(filter.store_id));
+  const res = await fetch(`/api/projects?${params}`);
+  return res.json();
 }
 
-export function getProject(id: number): (Project & { store: Store }) | null {
-  const all = getItem<Project[]>('projects', []);
-  const p = all.find(p => p.id === id);
+export async function fetchProject(id: number): Promise<(Project & { store: Store }) | null> {
+  const res = await fetch(`/api/projects?id=${id}`);
+  const p: Project | null = await res.json();
   if (!p) return null;
   const store = getStore(p.store_id);
   if (!store) return null;
   return { ...p, store };
 }
 
-export function createProject(data: {
+export async function createProject(data: {
   store_id: number;
   year: number;
   month: number;
   week_number: number;
   week_role: string;
   theme: string;
-}): Project {
-  ensureIds();
-  const checklistItems: ChecklistItem[] = CHECKLIST_DEFAULTS.map((text, i) => ({
-    id: nextCheckId + i,
-    item_text: text,
-    checked: false,
-  }));
-  nextCheckId += CHECKLIST_DEFAULTS.length;
-
-  const project: Project = {
-    id: nextProjectId++,
-    store_id: data.store_id,
-    year: data.year,
-    month: data.month,
-    week_number: data.week_number,
-    week_role: data.week_role,
-    theme: data.theme,
-    target: '',
-    appeal_axis: '',
-    video_duration: '15-30秒',
-    tone: '',
-    status: 'planning',
-    monday_done: false,
-    tuesday_done: false,
-    wednesday_done: false,
-    thursday_done: false,
-    draft_status: 'pending',
-    checkback_status: 'pending',
-    final_status: 'pending',
-    caption: '',
-    hashtags: '',
-    bgm_direction: '',
-    video_structure: '',
-    terop_plan: '',
-    notes: '',
-    checklist: checklistItems,
-    created_at: new Date().toISOString(),
-  };
-
-  const all = getItem<Project[]>('projects', []);
-  all.push(project);
-  setItem('projects', all);
-  return project;
+}): Promise<Project[]> {
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
 }
 
-function deriveStatus(p: Project): string {
-  // 水曜納品完了 → 完了
-  if (p.final_status === 'completed') return 'completed';
-  // 火曜チェックバック進行中以上 → レビュー中
-  if (p.checkback_status === 'in_progress' || p.checkback_status === 'completed') return 'review';
-  // 月曜初稿提出 or いずれかの日次チェックがON → 制作中
-  if (p.monday_done || p.tuesday_done || p.wednesday_done || p.thursday_done ||
-      p.draft_status === 'in_progress' || p.draft_status === 'completed') return 'in_progress';
-  return 'planning';
+export async function createProjectsBulk(items: Array<{
+  store_id: number;
+  year: number;
+  month: number;
+  week_number: number;
+  week_role: string;
+  theme: string;
+}>): Promise<Project[]> {
+  const res = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(items),
+  });
+  return res.json();
 }
 
-export function updateProject(id: number, updates: Partial<Project>): void {
-  const all = getItem<Project[]>('projects', []);
-  const idx = all.findIndex(p => p.id === id);
-  if (idx === -1) return;
-  const merged = { ...all[idx], ...updates };
-  // statusが明示的に指定されていない場合のみ自動計算
-  if (!updates.status) {
-    merged.status = deriveStatus(merged);
-  }
-  all[idx] = merged;
-  setItem('projects', all);
+export async function updateProject(id: number, updates: Partial<Project>): Promise<void> {
+  await fetch('/api/projects', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, ...updates }),
+  });
 }
 
-export function toggleChecklist(projectId: number, checkId: number): void {
-  const all = getItem<Project[]>('projects', []);
-  const proj = all.find(p => p.id === projectId);
-  if (!proj) return;
-  const item = proj.checklist.find(c => c.id === checkId);
-  if (item) item.checked = !item.checked;
-  setItem('projects', all);
+export async function toggleChecklist(projectId: number, checkId: number): Promise<void> {
+  await fetch('/api/projects/checklist', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, checkId }),
+  });
 }
 
-export function deleteProject(id: number): void {
-  const all = getItem<Project[]>('projects', []).filter(p => p.id !== id);
-  setItem('projects', all);
+export async function deleteProject(id: number): Promise<void> {
+  await fetch(`/api/projects?id=${id}`, { method: 'DELETE' });
 }
 
-// --- Music ---
-export function getMusicStocks(storeId?: number): MusicStock[] {
-  const all = getItem<MusicStock[]>('music', []);
-  return storeId ? all.filter(m => m.store_id === storeId) : all;
+// --- Music (API) ---
+export async function fetchMusicStocks(storeId?: number): Promise<MusicStock[]> {
+  const params = storeId ? `?store_id=${storeId}` : '';
+  const res = await fetch(`/api/music${params}`);
+  return res.json();
 }
 
-export function addMusicStock(data: {
+export async function addMusicStock(data: {
   store_id: number;
   title: string;
   mood: string;
@@ -235,21 +159,15 @@ export function addMusicStock(data: {
   suitable_scene: string;
   drive_url: string;
   notes: string;
-}): MusicStock {
-  ensureIds();
-  const stock: MusicStock = {
-    id: nextMusicId++,
-    ...data,
-    used_in: '',
-    created_at: new Date().toISOString(),
-  };
-  const all = getItem<MusicStock[]>('music', []);
-  all.push(stock);
-  setItem('music', all);
-  return stock;
+}): Promise<MusicStock> {
+  const res = await fetch('/api/music', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
 }
 
-export function deleteMusicStock(id: number): void {
-  const all = getItem<MusicStock[]>('music', []).filter(m => m.id !== id);
-  setItem('music', all);
+export async function deleteMusicStock(id: number): Promise<void> {
+  await fetch(`/api/music?id=${id}`, { method: 'DELETE' });
 }

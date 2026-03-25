@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
   { href: '/', label: 'ダッシュボード' },
@@ -13,8 +13,15 @@ const navItems = [
   { href: '/checklist', label: '最終チェック' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ userName }: { userName?: string }) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'DELETE' });
+    router.push('/login');
+    router.refresh();
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-[var(--border)] flex flex-col">
@@ -40,8 +47,16 @@ export default function Sidebar() {
           );
         })}
       </nav>
-      <div className="px-5 py-4 text-[11px] text-[var(--muted)] border-t border-[var(--border)]">
-        毎週木曜 21:00 投稿
+      <div className="px-4 py-4 border-t border-[var(--border)]">
+        {userName && (
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-medium text-[var(--foreground)] truncate">{userName}</span>
+            <button onClick={handleLogout} className="text-[11px] text-[var(--muted)] hover:text-[var(--foreground)] underline shrink-0 ml-2">
+              ログアウト
+            </button>
+          </div>
+        )}
+        <p className="text-[11px] text-[var(--muted)] mt-1">毎週木曜 21:00 投稿</p>
       </div>
     </aside>
   );

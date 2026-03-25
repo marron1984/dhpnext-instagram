@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { WEEK_ROLES, WEEKLY_SCHEDULE } from '@/lib/constants';
-import { getStores, getProjects, type Store, type Project } from '@/lib/store';
+import { getStores, fetchProjects, type Store, type Project } from '@/lib/store';
 
 const DAY_LABELS = [
   { key: 'monday_done' as const, label: '月', desc: '初稿提出' },
@@ -45,15 +45,14 @@ function getStep(p: Project): string {
 }
 
 export default function Dashboard() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores] = useState<Store[]>(getStores());
   const [projects, setProjects] = useState<Project[]>([]);
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const loadData = useCallback(() => {
-    setStores(getStores());
-    setProjects(getProjects({ year, month }));
+  const loadData = useCallback(async () => {
+    setProjects(await fetchProjects({ year, month }));
   }, [year, month]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -78,28 +77,18 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-lg font-semibold">{year}年{month}月</h1>
           <p className="text-[13px] text-[var(--muted)]">週次進捗管理</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <button onClick={goToPrevMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">
-            ←
-          </button>
-          {!isCurrentMonth && (
-            <button onClick={goToToday} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px]">
-              今月
-            </button>
-          )}
-          <button onClick={goToNextMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">
-            →
-          </button>
+          <button onClick={goToPrevMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">←</button>
+          {!isCurrentMonth && <button onClick={goToToday} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px]">今月</button>}
+          <button onClick={goToNextMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">→</button>
         </div>
       </div>
 
-      {/* Overall */}
       <div className="bg-white border border-[var(--border)] rounded-lg p-5 mb-6">
         <div className="flex items-end justify-between mb-3">
           <span className="text-[13px] text-[var(--muted)]">全体進捗</span>
@@ -116,7 +105,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Weeks */}
       {weekStats.length === 0 ? (
         <div className="bg-white border border-[var(--border)] rounded-lg p-12 text-center text-[var(--muted)] text-[13px] mb-6">
           プロジェクトがありません。<Link href="/calendar" className="underline ml-1">カレンダーから作成</Link>
@@ -138,8 +126,6 @@ export default function Dashboard() {
                   <span className="text-[13px] font-medium tabular-nums w-8 text-right">{avgPct}%</span>
                 </div>
               </div>
-
-              {/* Step indicator */}
               <div className="px-5 pb-2 flex items-center gap-1 text-[11px]">
                 {DAY_LABELS.map((d, i) => {
                   const allChecked = wp.every(p => p[d.key]);
@@ -153,8 +139,6 @@ export default function Dashboard() {
                   );
                 })}
               </div>
-
-              {/* Store rows */}
               <div className="px-5 pb-4 pt-1">
                 <table className="w-full text-[12px]">
                   <thead>
@@ -173,13 +157,11 @@ export default function Dashboard() {
                       const pct = calcPct(p);
                       return (
                         <tr key={p.id} className="border-b border-[var(--accent-light)] last:border-0">
-                          <td className="py-2 font-medium text-[var(--foreground)]">{store?.name}</td>
+                          <td className="py-2 font-medium">{store?.name}</td>
                           <td className="py-2 text-[var(--muted)]">{getStep(p)}</td>
                           {DAY_LABELS.map(d => (
                             <td key={d.key} className="text-center py-2">
-                              <span className={`inline-block w-4 h-4 rounded-full text-[9px] leading-4 text-center ${p[d.key] ? 'bg-[var(--foreground)] text-white' : 'bg-[var(--accent-light)] text-[var(--muted)]'}`}>
-                                {p[d.key] ? '✓' : ''}
-                              </span>
+                              <span className={`inline-block w-4 h-4 rounded-full text-[9px] leading-4 text-center ${p[d.key] ? 'bg-[var(--foreground)] text-white' : 'bg-[var(--accent-light)] text-[var(--muted)]'}`}>{p[d.key] ? '✓' : ''}</span>
                             </td>
                           ))}
                           <td />
@@ -207,12 +189,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Bottom sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white border border-[var(--border)] rounded-lg">
-          <div className="px-5 py-3 border-b border-[var(--border)]">
-            <h2 className="text-[13px] font-semibold">月内投稿設計</h2>
-          </div>
+          <div className="px-5 py-3 border-b border-[var(--border)]"><h2 className="text-[13px] font-semibold">月内投稿設計</h2></div>
           <div className="p-4">
             {WEEK_ROLES.map(wr => (
               <div key={wr.week} className="flex items-start gap-3 py-2 border-b border-[var(--accent-light)] last:border-0 text-[12px]">
@@ -223,7 +202,6 @@ export default function Dashboard() {
             ))}
           </div>
         </div>
-
         <div className="bg-white border border-[var(--border)] rounded-lg">
           <div className="px-5 py-3 border-b border-[var(--border)] flex justify-between items-center">
             <h2 className="text-[13px] font-semibold">週次スケジュール</h2>
