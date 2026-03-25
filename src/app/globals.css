@@ -3,12 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --foreground: #171717;
-  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --background: #f7f7f5;
+  --surface: #ffffff;
+  --border: #e8e8e6;
+  --muted: #8c8c8a;
+  --accent: #1a1a1a;
+  --accent-light: #f0f0ee;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: 'Noto Sans JP', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Minimal scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4d4d2; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #b4b4b2; }

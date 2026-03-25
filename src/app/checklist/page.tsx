@@ -17,18 +17,9 @@ export default function ChecklistPage() {
 
   const stores = getStores();
 
-  const goToPrevMonth = () => {
-    if (month === 1) { setYear(y => y - 1); setMonth(12); }
-    else { setMonth(m => m - 1); }
-  };
-  const goToNextMonth = () => {
-    if (month === 12) { setYear(y => y + 1); setMonth(1); }
-    else { setMonth(m => m + 1); }
-  };
-  const goToToday = () => {
-    setYear(now.getFullYear());
-    setMonth(now.getMonth() + 1);
-  };
+  const goToPrevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else { setMonth(m => m - 1); } };
+  const goToNextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else { setMonth(m => m + 1); } };
+  const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
   const handleToggle = (projectId: number, checkId: number) => {
@@ -41,75 +32,101 @@ export default function ChecklistPage() {
     return Math.round((cl.filter(c => c.checked).length / cl.length) * 100);
   };
 
+  // 週別グルーピング
+  const weekNumbers = [...new Set(projects.map(p => p.week_number))].sort((a, b) => a - b);
+  const weekGroups = weekNumbers.map(wn => ({
+    weekNumber: wn,
+    role: projects.find(p => p.week_number === wn)?.week_role || '',
+    projects: projects.filter(p => p.week_number === wn),
+  }));
+
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">最終チェックリスト</h1>
-          <p className="text-gray-500 mt-1">{year}年{month}月 - 投稿前の最終確認</p>
+          <h1 className="text-lg font-semibold">{year}年{month}月</h1>
+          <p className="text-[13px] text-[var(--muted)]">最終チェックリスト</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={goToPrevMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
-            ← 前月
-          </button>
-          {!isCurrentMonth && (
-            <button onClick={goToToday} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-              今月
-            </button>
-          )}
-          <button onClick={goToNextMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
-            翌月 →
-          </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={goToPrevMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">←</button>
+          {!isCurrentMonth && <button onClick={goToToday} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px]">今月</button>}
+          <button onClick={goToNextMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">→</button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5 mb-6">
-        <h2 className="font-bold mb-3">フォント運用ガイド</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div className="bg-gray-50 rounded p-3">
-            <h3 className="font-medium text-gray-700 mb-1">高級・和・上質系</h3>
-            <p className="text-gray-600">Noto Serif JP / Source Han Serif / 游明朝 / ヒラギノ明朝</p>
+      {/* Font guide */}
+      <div className="bg-white border border-[var(--border)] rounded-lg p-4 mb-4">
+        <h2 className="text-[13px] font-semibold mb-2">フォント運用ガイド</h2>
+        <div className="grid grid-cols-2 gap-3 text-[12px]">
+          <div className="bg-[var(--accent-light)] rounded-md p-3">
+            <h3 className="font-medium mb-0.5">高級・和・上質系</h3>
+            <p className="text-[var(--muted)]">Noto Serif JP / Source Han Serif / 游明朝 / ヒラギノ明朝</p>
           </div>
-          <div className="bg-gray-50 rounded p-3">
-            <h3 className="font-medium text-gray-700 mb-1">モダン・洗練系</h3>
-            <p className="text-gray-600">Noto Sans JP / Source Han Sans / 游ゴシック / ヒラギノ角ゴ</p>
+          <div className="bg-[var(--accent-light)] rounded-md p-3">
+            <h3 className="font-medium mb-0.5">モダン・洗練系</h3>
+            <p className="text-[var(--muted)]">Noto Sans JP / Source Han Sans / 游ゴシック / ヒラギノ角ゴ</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <p className="text-sm text-red-700"><span className="font-bold">重要:</span> Claudeの文字誤りとフォント違和感は発生率が高いため、最終確認は必ず人が行ってください。</p>
+      <div className="bg-[var(--accent-light)] border border-[var(--border)] rounded-lg px-4 py-3 mb-6 text-[12px] text-[var(--muted)]">
+        文字誤りとフォント違和感は発生率が高いため、最終確認は必ず人が行ってください。
       </div>
 
       {projects.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">プロジェクトがありません。カレンダーページから一括生成してください。</div>
+        <div className="text-center py-12 text-[var(--muted)] text-[13px]">プロジェクトがありません。カレンダーページから一括生成してください。</div>
       ) : (
-        <div className="space-y-4">
-          {projects.map(p => {
-            const progress = getProgress(p.checklist);
-            const allDone = progress === 100;
-            const store = stores.find(s => s.id === p.store_id);
+        <div className="space-y-6">
+          {weekGroups.map(({ weekNumber, role, projects: wp }) => {
+            const weekChecked = wp.reduce((sum, p) => sum + p.checklist.filter(c => c.checked).length, 0);
+            const weekTotal = wp.reduce((sum, p) => sum + p.checklist.length, 0);
+            const weekPct = weekTotal ? Math.round((weekChecked / weekTotal) * 100) : 0;
+            const weekDone = weekPct === 100;
+
             return (
-              <div key={p.id} className={`bg-white rounded-lg shadow border ${allDone ? 'border-green-300' : 'border-gray-200'}`}>
-                <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                  <h3 className="font-bold">{store?.name} - W{p.week_number} {p.week_role}</h3>
-                  <div className="flex items-center gap-3">
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div className={`h-2 rounded-full ${allDone ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }} />
+              <div key={weekNumber}>
+                {/* Week header */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[13px] font-semibold">W{weekNumber}</h2>
+                    <span className="text-[12px] text-[var(--muted)]">{role}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 bg-[var(--accent-light)] rounded-full h-1">
+                      <div className={`h-1 rounded-full transition-all ${weekDone ? 'bg-[var(--foreground)]' : 'bg-[var(--muted)]'}`} style={{ width: `${weekPct}%` }} />
                     </div>
-                    <span className="text-sm text-gray-500">{progress}%</span>
-                    {allDone && <span className="text-green-600 font-bold text-sm">完了</span>}
+                    <span className="text-[12px] tabular-nums text-[var(--muted)]">{weekChecked}/{weekTotal}</span>
                   </div>
                 </div>
-                <div className="p-5">
-                  <div className="grid grid-cols-2 gap-2">
-                    {p.checklist.map(item => (
-                      <label key={item.id} className="flex items-center gap-2 py-1 cursor-pointer">
-                        <input type="checkbox" checked={item.checked} onChange={() => handleToggle(p.id, item.id)} className="w-4 h-4 rounded" />
-                        <span className={`text-sm ${item.checked ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.item_text}</span>
-                      </label>
-                    ))}
-                  </div>
+
+                {/* Store cards */}
+                <div className="space-y-2">
+                  {wp.map(p => {
+                    const progress = getProgress(p.checklist);
+                    const allDone = progress === 100;
+                    const store = stores.find(s => s.id === p.store_id);
+                    return (
+                      <div key={p.id} className={`bg-white border rounded-lg ${allDone ? 'border-[var(--foreground)]' : 'border-[var(--border)]'}`}>
+                        <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--accent-light)]">
+                          <span className="text-[13px] font-medium">{store?.name}</span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-20 bg-[var(--accent-light)] rounded-full h-1">
+                              <div className={`h-1 rounded-full ${allDone ? 'bg-[var(--foreground)]' : 'bg-[var(--muted)]'}`} style={{ width: `${progress}%` }} />
+                            </div>
+                            <span className="text-[12px] tabular-nums text-[var(--muted)]">{progress}%</span>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-1">
+                          {p.checklist.map(item => (
+                            <label key={item.id} className="flex items-center gap-2 py-0.5 cursor-pointer text-[12px]">
+                              <input type="checkbox" checked={item.checked} onChange={() => handleToggle(p.id, item.id)} className="w-3.5 h-3.5 rounded border-[var(--border)] accent-[var(--foreground)]" />
+                              <span className={item.checked ? 'line-through text-[var(--muted)]' : ''}>{item.item_text}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

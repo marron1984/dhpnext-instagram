@@ -14,9 +14,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body className="flex min-h-screen bg-gray-50">
+      <body className="flex min-h-screen bg-[var(--background)]">
         <Sidebar />
-        <main className="flex-1 ml-64 p-8">{children}</main>
+        <main className="flex-1 ml-56 p-8 max-w-[1200px]">{children}</main>
       </body>
     </html>
   );

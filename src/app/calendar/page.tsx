@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { WEEK_ROLES } from '@/lib/constants';
 import { getStores, getProjects, createProject, type Store, type Project } from '@/lib/store';
 
 export default function CalendarPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [creating, setCreating] = useState(false);
@@ -19,9 +19,13 @@ export default function CalendarPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const goToPrevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else { setMonth(m => m - 1); } };
+  const goToNextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else { setMonth(m => m + 1); } };
+  const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
+
   const generateMonthProjects = () => {
     setCreating(true);
-    // 既存プロジェクトをlocalStorageから直接取得（stateは古い可能性がある）
     const currentProjects = getProjects({ year, month });
     const allStores = getStores();
     let count = 0;
@@ -34,7 +38,6 @@ export default function CalendarPage() {
         }
       }
     }
-    // state更新を確実にレンダリングさせるためsetTimeoutで分離
     setTimeout(() => {
       loadData();
       setCreating(false);
@@ -54,53 +57,54 @@ export default function CalendarPage() {
   };
   const thursdays = getThursdays();
 
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = { completed: 'bg-green-100 text-green-800', in_progress: 'bg-blue-100 text-blue-800', review: 'bg-yellow-100 text-yellow-800', planning: 'bg-gray-100 text-gray-800' };
-    const labels: Record<string, string> = { completed: '完了', in_progress: '制作中', review: 'レビュー', planning: '企画' };
-    return <span className={`text-xs px-2 py-0.5 rounded ${colors[status] || colors.planning}`}>{labels[status] || '未着手'}</span>;
+  const statusLabel = (s: string) => {
+    switch (s) { case 'completed': return '完了'; case 'in_progress': return '制作中'; case 'review': return 'レビュー'; default: return '企画'; }
   };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">月間カレンダー</h1>
-          <p className="text-gray-500 mt-1">毎週木曜 21:00 投稿スケジュール</p>
+          <h1 className="text-lg font-semibold">{year}年{month}月</h1>
+          <p className="text-[13px] text-[var(--muted)]">月間カレンダー</p>
         </div>
         <div className="flex items-center gap-3">
-          <select value={year} onChange={e => setYear(Number(e.target.value))} className="border rounded px-3 py-2 text-sm">
-            {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}年</option>)}
-          </select>
-          <select value={month} onChange={e => setMonth(Number(e.target.value))} className="border rounded px-3 py-2 text-sm">
-            {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}月</option>)}
-          </select>
-          <button onClick={generateMonthProjects} disabled={creating} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
-            {creating ? '生成中...' : '月間プロジェクト一括生成'}
+          <div className="flex items-center gap-1.5">
+            <button onClick={goToPrevMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">←</button>
+            {!isCurrentMonth && <button onClick={goToToday} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px]">今月</button>}
+            <button onClick={goToNextMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">→</button>
+          </div>
+          <button onClick={generateMonthProjects} disabled={creating} className="px-4 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px] hover:opacity-80 disabled:opacity-50">
+            {creating ? '生成中...' : '一括生成'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50"><tr>
-            <th className="px-4 py-3 text-left font-medium text-gray-600 w-28">投稿日</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600 w-24">役割</th>
-            <th className="px-4 py-3 text-left font-medium text-gray-600 w-32">テーマ</th>
-            {stores.map(s => <th key={s.id} className="px-4 py-3 text-left font-medium text-gray-600">{s.name}</th>)}
+      <div className="bg-white border border-[var(--border)] rounded-lg overflow-hidden">
+        <table className="w-full text-[12px]">
+          <thead><tr className="border-b border-[var(--border)]">
+            <th className="px-4 py-3 text-left font-normal text-[var(--muted)] w-24">投稿日</th>
+            <th className="px-4 py-3 text-left font-normal text-[var(--muted)] w-20">役割</th>
+            <th className="px-4 py-3 text-left font-normal text-[var(--muted)] w-28">テーマ</th>
+            {stores.map(s => <th key={s.id} className="px-4 py-3 text-left font-normal text-[var(--muted)]">{s.name}</th>)}
           </tr></thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody>
             {WEEK_ROLES.map((wr, i) => {
               const thu = thursdays[i];
               return (
-                <tr key={wr.week} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 font-medium">{thu ? `${month}/${thu.getDate()}(木)` : `第${wr.week}木曜`}</td>
-                  <td className="px-4 py-4"><span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{wr.role}</span></td>
-                  <td className="px-4 py-4 text-gray-600">{wr.theme}</td>
+                <tr key={wr.week} className="border-b border-[var(--accent-light)] last:border-0 hover:bg-[var(--accent-light)]">
+                  <td className="px-4 py-3 font-medium">{thu ? `${month}/${thu.getDate()}(木)` : `第${wr.week}木曜`}</td>
+                  <td className="px-4 py-3 text-[var(--muted)]">{wr.role}</td>
+                  <td className="px-4 py-3 text-[var(--muted)]">{wr.theme}</td>
                   {stores.map(store => {
                     const proj = projects.find(p => p.store_id === store.id && p.week_number === wr.week);
                     return (
-                      <td key={store.id} className="px-4 py-4">
-                        {proj ? <div>{getStatusBadge(proj.status)}<p className="text-xs text-gray-500 mt-1">{proj.theme}</p></div> : <span className="text-gray-300 text-xs">—</span>}
+                      <td key={store.id} className="px-4 py-3">
+                        {proj ? (
+                          <span className={`text-[11px] border border-[var(--border)] px-1.5 py-0.5 rounded ${proj.status === 'completed' ? 'bg-[var(--foreground)] text-white border-[var(--foreground)]' : ''}`}>
+                            {statusLabel(proj.status)}
+                          </span>
+                        ) : <span className="text-[var(--border)]">—</span>}
                       </td>
                     );
                   })}
@@ -111,12 +115,9 @@ export default function CalendarPage() {
         </table>
       </div>
 
-      <div className="mt-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-        <h3 className="font-bold text-amber-800 mb-2">月内投稿設計の補足</h3>
-        <ul className="text-sm text-amber-700 space-y-1">
-          <li>第4週は「ただの仕込み動画」にしない → 技術や仕込みは味・価格・体験価値の裏付けとして機能させる</li>
-          <li>第5週は「ただ綺麗」では弱い → 必ずどの利用シーンに適しているかまで言い切る</li>
-        </ul>
+      <div className="mt-4 bg-[var(--accent-light)] border border-[var(--border)] rounded-lg p-4 text-[12px] text-[var(--muted)]">
+        <p>第4週: 技術や仕込みは味・価格・体験価値の裏付けとして機能させる</p>
+        <p>第5週: 必ずどの利用シーンに適しているかまで言い切る</p>
       </div>
     </div>
   );
