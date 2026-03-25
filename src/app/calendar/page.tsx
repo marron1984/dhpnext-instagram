@@ -21,16 +21,26 @@ export default function CalendarPage() {
 
   const generateMonthProjects = () => {
     setCreating(true);
-    for (const store of stores) {
+    // 既存プロジェクトをlocalStorageから直接取得（stateは古い可能性がある）
+    const currentProjects = getProjects({ year, month });
+    const allStores = getStores();
+    let count = 0;
+    for (const store of allStores) {
       for (const wr of WEEK_ROLES) {
-        const exists = projects.find(p => p.store_id === store.id && p.week_number === wr.week);
+        const exists = currentProjects.find(p => p.store_id === store.id && p.week_number === wr.week);
         if (!exists) {
           createProject({ store_id: store.id, year, month, week_number: wr.week, week_role: wr.role, theme: wr.theme });
+          count++;
         }
       }
     }
-    loadData();
-    setCreating(false);
+    // state更新を確実にレンダリングさせるためsetTimeoutで分離
+    setTimeout(() => {
+      loadData();
+      setCreating(false);
+      if (count > 0) alert(`${count}件のプロジェクトを生成しました`);
+      else alert('すべてのプロジェクトは既に存在します');
+    }, 0);
   };
 
   const getThursdays = () => {
