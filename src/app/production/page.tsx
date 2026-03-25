@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getStores, getProjects, getProject, updateProject, toggleChecklist, type Store, type Project } from '@/lib/store';
+import { TARGET_OPTIONS, APPEAL_AXIS_OPTIONS } from '@/lib/constants';
 
 export default function ProductionPage() {
   const [stores, setStores] = useState<Store[]>([]);
@@ -149,9 +150,21 @@ export default function ProductionPage() {
                 <div className="bg-white rounded-lg shadow border border-gray-200 p-5">
                   <h3 className="font-bold mb-3">制作パラメータ</h3>
                   <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">ターゲット</label>
+                      <select value={detail.target || ''} onChange={e => handleUpdate('target', e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
+                        <option value="">選択してください</option>
+                        {TARGET_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 block mb-1">訴求軸</label>
+                      <select value={detail.appeal_axis || ''} onChange={e => handleUpdate('appeal_axis', e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
+                        <option value="">選択してください</option>
+                        {APPEAL_AXIS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    </div>
                     {[
-                      { label: 'ターゲット', field: 'target', ph: '例: 30-40代 接待利用' },
-                      { label: '訴求軸', field: 'appeal_axis', ph: '例: 季節感、特別感' },
                       { label: '動画尺', field: 'video_duration', ph: '' },
                       { label: 'トーン', field: 'tone', ph: '例: 上品、落ち着いた' },
                     ].map(f => (
