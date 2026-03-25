@@ -182,11 +182,27 @@ export function createProject(data: {
   return project;
 }
 
+function deriveStatus(p: Project): string {
+  // 完成納品が完了 → 完了
+  if (p.final_status === 'completed') return 'completed';
+  // CheckBackが進行中以上 → レビュー中
+  if (p.checkback_status === 'in_progress' || p.checkback_status === 'completed') return 'review';
+  // いずれかの日次チェックがON or 初稿が進行中以上 → 制作中
+  if (p.monday_done || p.tuesday_done || p.wednesday_done || p.thursday_done ||
+      p.draft_status === 'in_progress' || p.draft_status === 'completed') return 'in_progress';
+  return 'planning';
+}
+
 export function updateProject(id: number, updates: Partial<Project>): void {
   const all = getItem<Project[]>('projects', []);
   const idx = all.findIndex(p => p.id === id);
   if (idx === -1) return;
-  all[idx] = { ...all[idx], ...updates };
+  const merged = { ...all[idx], ...updates };
+  // statusが明示的に指定されていない場合のみ自動計算
+  if (!updates.status) {
+    merged.status = deriveStatus(merged);
+  }
+  all[idx] = merged;
   setItem('projects', all);
 }
 
