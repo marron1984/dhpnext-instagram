@@ -30,18 +30,9 @@ export default function WorkflowPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const goToPrevMonth = () => {
-    if (month === 1) { setYear(y => y - 1); setMonth(12); }
-    else { setMonth(m => m - 1); }
-  };
-  const goToNextMonth = () => {
-    if (month === 12) { setYear(y => y + 1); setMonth(1); }
-    else { setMonth(m => m + 1); }
-  };
-  const goToToday = () => {
-    setYear(now.getFullYear());
-    setMonth(now.getMonth() + 1);
-  };
+  const goToPrevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else { setMonth(m => m - 1); } };
+  const goToNextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else { setMonth(m => m + 1); } };
+  const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
   const toggleDay = (projectId: number, field: keyof Project) => {
@@ -61,10 +52,10 @@ export default function WorkflowPage() {
     loadData();
   };
 
-  const getMilestoneStyle = (s: string) => {
-    switch (s) { case 'completed': return 'bg-green-500 text-white'; case 'in_progress': return 'bg-blue-500 text-white'; default: return 'bg-gray-200 text-gray-600'; }
+  const mStyle = (s: string) => {
+    switch (s) { case 'completed': return 'bg-[var(--foreground)] text-white'; case 'in_progress': return 'bg-[var(--muted)] text-white'; default: return 'bg-[var(--accent-light)] text-[var(--muted)]'; }
   };
-  const getMilestoneLabel = (s: string) => {
+  const mLabel = (s: string) => {
     switch (s) { case 'completed': return '完了'; case 'in_progress': return '進行中'; default: return '未着手'; }
   };
 
@@ -77,77 +68,70 @@ export default function WorkflowPage() {
 
   return (
     <div>
-      <div className="mb-8 flex items-center justify-between">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">週次ワークフロー</h1>
-          <p className="text-gray-500 mt-1">{year}年{month}月 - 月〜木の進行管理</p>
+          <h1 className="text-lg font-semibold">{year}年{month}月</h1>
+          <p className="text-[13px] text-[var(--muted)]">週次ワークフロー</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={goToPrevMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
-            ← 前月
-          </button>
-          {!isCurrentMonth && (
-            <button onClick={goToToday} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
-              今月
-            </button>
-          )}
-          <button onClick={goToNextMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
-            翌月 →
-          </button>
+        <div className="flex items-center gap-1.5">
+          <button onClick={goToPrevMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">←</button>
+          {!isCurrentMonth && <button onClick={goToToday} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[13px]">今月</button>}
+          <button onClick={goToNextMonth} className="px-2.5 py-1.5 border border-[var(--border)] rounded-md text-[13px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]">→</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      {/* Day cards */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
         {DAYS.map(d => (
-          <div key={d.key} className="bg-white rounded-lg shadow border border-gray-200 p-4">
-            <h3 className="font-bold text-blue-600">{d.label}</h3>
-            <p className="text-sm text-gray-600 mt-1">{d.desc}</p>
+          <div key={d.key} className="bg-white border border-[var(--border)] rounded-lg px-4 py-3">
+            <h3 className="text-[13px] font-semibold">{d.label}</h3>
+            <p className="text-[12px] text-[var(--muted)] mt-0.5">{d.desc}</p>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5 mb-8">
-        <h2 className="font-bold text-lg mb-3">3段階管理ポイント</h2>
+      {/* Milestones */}
+      <div className="bg-white border border-[var(--border)] rounded-lg p-4 mb-6">
         <div className="grid grid-cols-3 gap-4">
           {MILESTONES.map(m => (
-            <div key={m.key} className="border rounded p-3">
-              <h4 className="font-medium text-sm">{m.label}</h4>
-              <p className="text-xs text-gray-500 mt-1">{m.desc}</p>
+            <div key={m.key} className="border border-[var(--border)] rounded-md p-3">
+              <h4 className="text-[13px] font-medium">{m.label}</h4>
+              <p className="text-[11px] text-[var(--muted)] mt-1">{m.desc}</p>
             </div>
           ))}
         </div>
       </div>
 
       {projects.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">プロジェクトがありません。カレンダーページから一括生成してください。</div>
+        <div className="text-center py-12 text-[var(--muted)] text-[13px]">プロジェクトがありません。カレンダーページから一括生成してください。</div>
       ) : (
         Object.entries(grouped).map(([storeName, storeProjects]) => (
-          <div key={storeName} className="bg-white rounded-lg shadow border border-gray-200 mb-6">
-            <div className="p-5 border-b border-gray-200"><h2 className="font-bold text-lg">{storeName}</h2></div>
+          <div key={storeName} className="bg-white border border-[var(--border)] rounded-lg mb-4">
+            <div className="px-5 py-3 border-b border-[var(--border)]"><h2 className="text-[13px] font-semibold">{storeName}</h2></div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50"><tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">週</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">役割</th>
-                  {DAYS.map(d => <th key={d.key} className="px-4 py-3 text-center font-medium text-gray-600">{d.label}</th>)}
-                  {MILESTONES.map(m => <th key={m.key} className="px-4 py-3 text-center font-medium text-gray-600">{m.label}</th>)}
+              <table className="w-full text-[12px]">
+                <thead><tr className="border-b border-[var(--border)]">
+                  <th className="px-4 py-2.5 text-left font-normal text-[var(--muted)]">週</th>
+                  <th className="px-4 py-2.5 text-left font-normal text-[var(--muted)]">役割</th>
+                  {DAYS.map(d => <th key={d.key} className="px-4 py-2.5 text-center font-normal text-[var(--muted)]">{d.label}</th>)}
+                  {MILESTONES.map(m => <th key={m.key} className="px-4 py-2.5 text-center font-normal text-[var(--muted)]">{m.label}</th>)}
                 </tr></thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {storeProjects.map(p => (
-                    <tr key={p.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-medium">W{p.week_number}</td>
-                      <td className="px-4 py-3"><span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{p.week_role}</span></td>
+                    <tr key={p.id} className="border-b border-[var(--accent-light)] last:border-0 hover:bg-[var(--accent-light)]">
+                      <td className="px-4 py-2.5 font-medium">W{p.week_number}</td>
+                      <td className="px-4 py-2.5 text-[var(--muted)]">{p.week_role}</td>
                       {DAYS.map(d => (
-                        <td key={d.key} className="px-4 py-3 text-center">
-                          <button onClick={() => toggleDay(p.id, d.key)} className={`w-8 h-8 rounded-full border-2 transition-colors ${p[d.key] ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 hover:border-green-400'}`}>
+                        <td key={d.key} className="px-4 py-2.5 text-center">
+                          <button onClick={() => toggleDay(p.id, d.key)} className={`w-6 h-6 rounded-full text-[10px] transition-colors ${p[d.key] ? 'bg-[var(--foreground)] text-white' : 'border border-[var(--border)] hover:border-[var(--muted)]'}`}>
                             {p[d.key] ? '✓' : ''}
                           </button>
                         </td>
                       ))}
                       {MILESTONES.map(m => (
-                        <td key={m.key} className="px-4 py-3 text-center">
-                          <button onClick={() => cycleMilestone(p.id, m.key)} className={`text-xs px-3 py-1 rounded-full ${getMilestoneStyle(p[m.key])}`}>
-                            {getMilestoneLabel(p[m.key])}
+                        <td key={m.key} className="px-4 py-2.5 text-center">
+                          <button onClick={() => cycleMilestone(p.id, m.key)} className={`text-[11px] px-2.5 py-1 rounded-full transition-colors ${mStyle(p[m.key])}`}>
+                            {mLabel(p[m.key])}
                           </button>
                         </td>
                       ))}

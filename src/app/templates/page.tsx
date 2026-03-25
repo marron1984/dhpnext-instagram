@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { CLAUDE_TEMPLATES, VIDEO_STRUCTURE_TEMPLATE } from '@/lib/constants';
+import { CLAUDE_TEMPLATES, VIDEO_STRUCTURE_TEMPLATE, TARGET_OPTIONS, APPEAL_AXIS_OPTIONS } from '@/lib/constants';
 import { getStores, type Store } from '@/lib/store';
 
 export default function TemplatesPage() {
@@ -57,79 +57,95 @@ export default function TemplatesPage() {
     return `${today}-${selectedStore.slug}-${appealAxis || 'promotion'}`.replace(/[、。・]/g, '-').replace(/\s+/g, '-');
   };
 
+  const selectCls = 'w-full border border-[var(--border)] rounded-md px-3 py-2 text-[13px] focus:outline-none focus:border-[var(--muted)]';
+  const inputCls = selectCls;
+
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Claude指示テンプレート</h1>
-        <p className="text-gray-500 mt-1">制作指示をワンクリックで生成・コピー</p>
+        <h1 className="text-lg font-semibold">指示テンプレート</h1>
+        <p className="text-[13px] text-[var(--muted)]">制作指示をワンクリックで生成・コピー</p>
       </div>
 
-      <div className="bg-white rounded-lg shadow border border-gray-200 p-5 mb-6">
-        <h2 className="font-bold mb-4">制作パラメータ設定</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      {/* Params */}
+      <div className="bg-white border border-[var(--border)] rounded-lg p-5 mb-4">
+        <h2 className="text-[13px] font-semibold mb-3">制作パラメータ設定</h2>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div>
-            <label className="text-xs text-gray-500 block mb-1">対象店舗</label>
-            <select value={selectedStore?.id || ''} onChange={e => setSelectedStore(stores.find(s => s.id === Number(e.target.value)) || null)} className="w-full border rounded px-3 py-2 text-sm">
+            <label className="text-[11px] text-[var(--muted)] block mb-1">対象店舗</label>
+            <select value={selectedStore?.id || ''} onChange={e => setSelectedStore(stores.find(s => s.id === Number(e.target.value)) || null)} className={selectCls}>
               {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">ターゲット</label>
-            <input type="text" value={target} onChange={e => setTarget(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="30-40代 接待利用" />
+            <label className="text-[11px] text-[var(--muted)] block mb-1">ターゲット</label>
+            <select value={target} onChange={e => setTarget(e.target.value)} className={selectCls}>
+              <option value="">選択してください</option>
+              {TARGET_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">訴求軸</label>
-            <input type="text" value={appealAxis} onChange={e => setAppealAxis(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder="季節感、特別感" />
+            <label className="text-[11px] text-[var(--muted)] block mb-1">訴求軸</label>
+            <select value={appealAxis} onChange={e => setAppealAxis(e.target.value)} className={selectCls}>
+              <option value="">選択してください</option>
+              {APPEAL_AXIS_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+            </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">動画尺</label>
-            <select value={duration} onChange={e => setDuration(e.target.value)} className="w-full border rounded px-3 py-2 text-sm">
+            <label className="text-[11px] text-[var(--muted)] block mb-1">動画尺</label>
+            <select value={duration} onChange={e => setDuration(e.target.value)} className={selectCls}>
               <option value="15秒">15秒</option><option value="15-30秒">15-30秒</option><option value="30秒">30秒</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-gray-500 block mb-1">トーン</label>
-            <input type="text" value={tone} onChange={e => setTone(e.target.value)} className="w-full border rounded px-3 py-2 text-sm" placeholder={selectedStore?.main_tone || ''} />
+            <label className="text-[11px] text-[var(--muted)] block mb-1">トーン</label>
+            <input type="text" value={tone} onChange={e => setTone(e.target.value)} className={inputCls} placeholder={selectedStore?.main_tone || ''} />
           </div>
         </div>
       </div>
 
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-xs text-gray-500">推奨レポジトリ名:</span>
-            <code className="ml-2 text-sm bg-white px-2 py-1 rounded border">{genRepoName()}</code>
-          </div>
-          <button onClick={() => copy(genRepoName(), 'repo')} className="text-sm text-blue-600 hover:underline">{copied === 'repo' ? 'コピー済み!' : 'コピー'}</button>
+      {/* Repo name */}
+      <div className="bg-[var(--accent-light)] border border-[var(--border)] rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+        <div className="text-[12px]">
+          <span className="text-[var(--muted)]">推奨レポジトリ名:</span>
+          <code className="ml-2 bg-white px-2 py-0.5 rounded border border-[var(--border)] text-[13px]">{genRepoName()}</code>
         </div>
+        <button onClick={() => copy(genRepoName(), 'repo')} className="text-[12px] text-[var(--muted)] hover:text-[var(--foreground)] underline">{copied === 'repo' ? 'コピー済み' : 'コピー'}</button>
       </div>
 
-      <div className="space-y-6">
+      {/* Steps */}
+      <div className="space-y-4">
         {[
           { step: 1, title: '初回確認指示', key: 'initial', text: CLAUDE_TEMPLATES.initial },
           { step: 2, title: 'インデックス作成指示', key: 'index', text: CLAUDE_TEMPLATES.index },
         ].map(t => (
-          <div key={t.key} className="bg-white rounded-lg shadow border border-gray-200">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-              <div><span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded mr-2">STEP {t.step}</span><span className="font-bold">{t.title}</span></div>
-              <button onClick={() => copy(t.text, t.key)} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">{copied === t.key ? 'コピー済み!' : 'コピー'}</button>
+          <div key={t.key} className="bg-white border border-[var(--border)] rounded-lg">
+            <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-[var(--muted)] border border-[var(--border)] px-1.5 py-0.5 rounded">STEP {t.step}</span>
+                <span className="text-[13px] font-semibold">{t.title}</span>
+              </div>
+              <button onClick={() => copy(t.text, t.key)} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[12px] hover:opacity-80">{copied === t.key ? 'コピー済み' : 'コピー'}</button>
             </div>
-            <pre className="p-5 text-sm text-gray-700 whitespace-pre-wrap">{t.text}</pre>
+            <pre className="p-5 text-[13px] text-[var(--muted)] whitespace-pre-wrap leading-relaxed">{t.text}</pre>
           </div>
         ))}
 
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-            <div><span className="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-1 rounded mr-2">STEP 3</span><span className="font-bold">制作指示（カスタム生成）</span></div>
-            <button onClick={() => copy(genPrompt(), 'production')} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">{copied === 'production' ? 'コピー済み!' : 'コピー'}</button>
+        <div className="bg-white border border-[var(--border)] rounded-lg">
+          <div className="px-5 py-3 border-b border-[var(--border)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-[var(--muted)] border border-[var(--border)] px-1.5 py-0.5 rounded">STEP 3</span>
+              <span className="text-[13px] font-semibold">制作指示（カスタム生成）</span>
+            </div>
+            <button onClick={() => copy(genPrompt(), 'production')} className="px-3 py-1.5 bg-[var(--foreground)] text-white rounded-md text-[12px] hover:opacity-80">{copied === 'production' ? 'コピー済み' : 'コピー'}</button>
           </div>
-          <pre className="p-5 text-sm text-gray-700 whitespace-pre-wrap">{genPrompt()}</pre>
+          <pre className="p-5 text-[13px] text-[var(--muted)] whitespace-pre-wrap leading-relaxed">{genPrompt()}</pre>
         </div>
 
-        <div className="bg-white rounded-lg shadow border border-gray-200">
-          <div className="p-5 border-b border-gray-200"><span className="font-bold">動画構成の基本形（参考）</span></div>
-          <pre className="p-5 text-sm text-gray-700 whitespace-pre-wrap">{VIDEO_STRUCTURE_TEMPLATE}</pre>
-          <div className="px-5 pb-5"><p className="text-xs text-gray-500">縦型 9:16 / 冒頭3秒で引き / 料理・空間・人の気配のバランス / テロップ最小限 / 最後に保存・来店・予約導線</p></div>
+        <div className="bg-white border border-[var(--border)] rounded-lg">
+          <div className="px-5 py-3 border-b border-[var(--border)]"><span className="text-[13px] font-semibold">動画構成の基本形（参考）</span></div>
+          <pre className="p-5 text-[13px] text-[var(--muted)] whitespace-pre-wrap leading-relaxed">{VIDEO_STRUCTURE_TEMPLATE}</pre>
+          <div className="px-5 pb-4"><p className="text-[11px] text-[var(--muted)]">縦型 9:16 / 冒頭3秒で引き / 料理・空間・人の気配のバランス / テロップ最小限 / 最後に保存・来店・予約導線</p></div>
         </div>
       </div>
     </div>

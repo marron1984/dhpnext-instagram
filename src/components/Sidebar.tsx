@@ -4,44 +4,43 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navItems = [
-  { href: '/', label: 'ダッシュボード', icon: '📊' },
-  { href: '/calendar', label: '月間カレンダー', icon: '📅' },
-  { href: '/workflow', label: '週次ワークフロー', icon: '🔄' },
-  { href: '/production', label: '制作管理', icon: '🎬' },
-  { href: '/templates', label: 'Claude指示テンプレート', icon: '🤖' },
-  { href: '/music', label: '音楽ストック', icon: '🎵' },
-  { href: '/checklist', label: '最終チェック', icon: '✅' },
+  { href: '/', label: 'ダッシュボード' },
+  { href: '/calendar', label: 'カレンダー' },
+  { href: '/workflow', label: 'ワークフロー' },
+  { href: '/production', label: '制作管理' },
+  { href: '/templates', label: '指示テンプレート' },
+  { href: '/music', label: '音楽ストック' },
+  { href: '/checklist', label: '最終チェック' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col">
-      <div className="p-6 border-b border-gray-700">
-        <h1 className="text-lg font-bold">Instagram</h1>
-        <p className="text-sm text-gray-400 mt-1">プロモーション管理</p>
+    <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-[var(--border)] flex flex-col">
+      <div className="px-5 py-6">
+        <h1 className="text-sm font-semibold tracking-tight text-[var(--foreground)]">Instagram</h1>
+        <p className="text-[11px] text-[var(--muted)] mt-0.5">Promotion Manager</p>
       </div>
-      <nav className="flex-1 py-4">
+      <nav className="flex-1 px-3">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-6 py-3 text-sm transition-colors ${
+              className={`block px-3 py-2 text-[13px] rounded-md mb-0.5 transition-colors ${
                 isActive
-                  ? 'bg-gray-700 text-white border-r-2 border-blue-400'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-[var(--accent)] text-white font-medium'
+                  : 'text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--accent-light)]'
               }`}
             >
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
+              {item.label}
             </Link>
           );
         })}
       </nav>
-      <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
+      <div className="px-5 py-4 text-[11px] text-[var(--muted)] border-t border-[var(--border)]">
         毎週木曜 21:00 投稿
       </div>
     </aside>
