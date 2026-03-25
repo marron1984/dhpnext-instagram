@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { getStores, getProjects, toggleChecklist, type Project } from '@/lib/store';
+import { getStores, fetchProjects, toggleChecklist, type Project } from '@/lib/store';
 
 export default function ChecklistPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -9,8 +9,8 @@ export default function ChecklistPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const loadData = useCallback(() => {
-    setProjects(getProjects({ year, month }));
+  const loadData = useCallback(async () => {
+    setProjects(await fetchProjects({ year, month }));
   }, [year, month]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -22,8 +22,8 @@ export default function ChecklistPage() {
   const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
-  const handleToggle = (projectId: number, checkId: number) => {
-    toggleChecklist(projectId, checkId);
+  const handleToggle = async (projectId: number, checkId: number) => {
+    await toggleChecklist(projectId, checkId);
     loadData();
   };
 
@@ -32,7 +32,6 @@ export default function ChecklistPage() {
     return Math.round((cl.filter(c => c.checked).length / cl.length) * 100);
   };
 
-  // 週別グルーピング
   const weekNumbers = [...new Set(projects.map(p => p.week_number))].sort((a, b) => a - b);
   const weekGroups = weekNumbers.map(wn => ({
     weekNumber: wn,
@@ -54,7 +53,6 @@ export default function ChecklistPage() {
         </div>
       </div>
 
-      {/* Font guide */}
       <div className="bg-white border border-[var(--border)] rounded-lg p-4 mb-4">
         <h2 className="text-[13px] font-semibold mb-2">フォント運用ガイド</h2>
         <div className="grid grid-cols-2 gap-3 text-[12px]">
@@ -82,10 +80,8 @@ export default function ChecklistPage() {
             const weekTotal = wp.reduce((sum, p) => sum + p.checklist.length, 0);
             const weekPct = weekTotal ? Math.round((weekChecked / weekTotal) * 100) : 0;
             const weekDone = weekPct === 100;
-
             return (
               <div key={weekNumber}>
-                {/* Week header */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <h2 className="text-[13px] font-semibold">W{weekNumber}</h2>
@@ -98,8 +94,6 @@ export default function ChecklistPage() {
                     <span className="text-[12px] tabular-nums text-[var(--muted)]">{weekChecked}/{weekTotal}</span>
                   </div>
                 </div>
-
-                {/* Store cards */}
                 <div className="space-y-2">
                   {wp.map(p => {
                     const progress = getProgress(p.checklist);

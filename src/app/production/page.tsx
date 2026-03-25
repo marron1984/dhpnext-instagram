@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { getStores, getProjects, getProject, updateProject, toggleChecklist, type Store, type Project } from '@/lib/store';
+import { getStores, fetchProjects, fetchProject, updateProject, toggleChecklist, type Store, type Project } from '@/lib/store';
 import { TARGET_OPTIONS, APPEAL_AXIS_OPTIONS } from '@/lib/constants';
 
 export default function ProductionPage() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores] = useState<Store[]>(getStores());
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<(Project & { store: Store }) | null>(null);
@@ -14,29 +14,32 @@ export default function ProductionPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const loadData = useCallback(() => {
-    setStores(getStores());
-    setProjects(getProjects({ year, month }));
+  const loadData = useCallback(async () => {
+    setProjects(await fetchProjects({ year, month }));
   }, [year, month]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { setSelectedId(null); setDetail(null); }, [year, month]);
-  useEffect(() => { if (selectedId !== null) setDetail(getProject(selectedId)); }, [selectedId, projects]);
+  useEffect(() => {
+    if (selectedId !== null) {
+      fetchProject(selectedId).then(setDetail);
+    }
+  }, [selectedId, projects]);
 
   const goToPrevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12); } else { setMonth(m => m - 1); } };
   const goToNextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1); } else { setMonth(m => m + 1); } };
   const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
-  const handleUpdate = (field: string, value: string) => {
+  const handleUpdate = async (field: string, value: string) => {
     if (selectedId === null) return;
-    updateProject(selectedId, { [field]: value } as unknown as Partial<Project>);
+    await updateProject(selectedId, { [field]: value } as unknown as Partial<Project>);
     loadData();
   };
 
-  const handleToggleCheck = (checkId: number) => {
+  const handleToggleCheck = async (checkId: number) => {
     if (selectedId === null) return;
-    toggleChecklist(selectedId, checkId);
+    await toggleChecklist(selectedId, checkId);
     loadData();
   };
 
@@ -70,7 +73,6 @@ export default function ProductionPage() {
       </div>
 
       <div className="flex gap-5">
-        {/* Sidebar list */}
         <div className="w-64 shrink-0">
           <div className="bg-white border border-[var(--border)] rounded-lg">
             <div className="px-4 py-3 border-b border-[var(--border)]"><h2 className="text-[13px] font-semibold">プロジェクト一覧</h2></div>
@@ -98,13 +100,11 @@ export default function ProductionPage() {
           </div>
         </div>
 
-        {/* Detail */}
         <div className="flex-1 min-w-0">
           {!detail ? (
             <div className="bg-white border border-[var(--border)] rounded-lg p-12 text-center text-[var(--muted)] text-[13px]">左のリストからプロジェクトを選択してください</div>
           ) : (
             <div className="space-y-4">
-              {/* Header */}
               <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -125,7 +125,6 @@ export default function ProductionPage() {
                 </div>
               </div>
 
-              {/* Params + Structure */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                   <h3 className="text-[13px] font-semibold mb-3">制作パラメータ</h3>
@@ -161,7 +160,6 @@ export default function ProductionPage() {
                 </div>
               </div>
 
-              {/* Terop + BGM */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                   <h3 className="text-[13px] font-semibold mb-3">テロップ案</h3>
@@ -173,21 +171,18 @@ export default function ProductionPage() {
                 </div>
               </div>
 
-              {/* Caption */}
               <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                 <h3 className="text-[13px] font-semibold mb-1">キャプション</h3>
                 <p className="text-[11px] text-[var(--muted)] mb-2">1行目で惹く → 店の魅力を短く → 利用シーン提案 → 行動導線</p>
                 <textarea value={detail.caption} onChange={e => handleUpdate('caption', e.target.value)} rows={6} className={textareaCls} placeholder="キャプションを入力..." />
               </div>
 
-              {/* Hashtags */}
               <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                 <h3 className="text-[13px] font-semibold mb-1">ハッシュタグ</h3>
                 <p className="text-[11px] text-[var(--muted)] mb-2">ブランド系・エリア系・利用シーン系の3層</p>
                 <textarea value={detail.hashtags} onChange={e => handleUpdate('hashtags', e.target.value)} rows={3} className={textareaCls} placeholder="#大嵓埜 #北新地グルメ #会食 #接待..." />
               </div>
 
-              {/* Checklist */}
               <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                 <h3 className="text-[13px] font-semibold mb-3">最終チェックリスト</h3>
                 <div className="space-y-1.5">
@@ -200,7 +195,6 @@ export default function ProductionPage() {
                 </div>
               </div>
 
-              {/* Notes */}
               <div className="bg-white border border-[var(--border)] rounded-lg p-5">
                 <h3 className="text-[13px] font-semibold mb-3">メモ</h3>
                 <textarea value={detail.notes} onChange={e => handleUpdate('notes', e.target.value)} rows={4} className={textareaCls} placeholder="自由メモ..." />

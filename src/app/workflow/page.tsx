@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { getStores, getProjects, updateProject, type Store, type Project } from '@/lib/store';
+import { getStores, fetchProjects, updateProject, type Store, type Project } from '@/lib/store';
 
 const DAYS = [
   { key: 'monday_done' as const, label: '月曜', desc: '初稿提出' },
@@ -17,15 +17,14 @@ const MILESTONES = [
 ];
 
 export default function WorkflowPage() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores] = useState<Store[]>(getStores());
   const [projects, setProjects] = useState<Project[]>([]);
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const loadData = useCallback(() => {
-    setStores(getStores());
-    setProjects(getProjects({ year, month }));
+  const loadData = useCallback(async () => {
+    setProjects(await fetchProjects({ year, month }));
   }, [year, month]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -35,20 +34,20 @@ export default function WorkflowPage() {
   const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
-  const toggleDay = (projectId: number, field: keyof Project) => {
+  const toggleDay = async (projectId: number, field: keyof Project) => {
     const p = projects.find(pr => pr.id === projectId);
     if (!p) return;
-    updateProject(projectId, { [field]: !p[field] } as Partial<Project>);
+    await updateProject(projectId, { [field]: !p[field] } as Partial<Project>);
     loadData();
   };
 
-  const cycleMilestone = (projectId: number, field: keyof Project) => {
+  const cycleMilestone = async (projectId: number, field: keyof Project) => {
     const p = projects.find(pr => pr.id === projectId);
     if (!p) return;
     const order = ['pending', 'in_progress', 'completed'];
     const cur = p[field] as string;
     const next = order[(order.indexOf(cur) + 1) % order.length];
-    updateProject(projectId, { [field]: next } as Partial<Project>);
+    await updateProject(projectId, { [field]: next } as Partial<Project>);
     loadData();
   };
 
@@ -80,7 +79,6 @@ export default function WorkflowPage() {
         </div>
       </div>
 
-      {/* Day cards */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {DAYS.map(d => (
           <div key={d.key} className="bg-white border border-[var(--border)] rounded-lg px-4 py-3">
@@ -90,7 +88,6 @@ export default function WorkflowPage() {
         ))}
       </div>
 
-      {/* Milestones */}
       <div className="bg-white border border-[var(--border)] rounded-lg p-4 mb-6">
         <div className="grid grid-cols-3 gap-4">
           {MILESTONES.map(m => (

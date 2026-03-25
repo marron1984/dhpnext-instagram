@@ -2,19 +2,18 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { WEEK_ROLES } from '@/lib/constants';
-import { getStores, getProjects, createProject, type Store, type Project } from '@/lib/store';
+import { getStores, fetchProjects, createProjectsBulk, type Store, type Project } from '@/lib/store';
 
 export default function CalendarPage() {
-  const [stores, setStores] = useState<Store[]>([]);
+  const [stores] = useState<Store[]>(getStores());
   const [projects, setProjects] = useState<Project[]>([]);
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [creating, setCreating] = useState(false);
 
-  const loadData = useCallback(() => {
-    setStores(getStores());
-    setProjects(getProjects({ year, month }));
+  const loadData = useCallback(async () => {
+    setProjects(await fetchProjects({ year, month }));
   }, [year, month]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -24,26 +23,26 @@ export default function CalendarPage() {
   const goToToday = () => { setYear(now.getFullYear()); setMonth(now.getMonth() + 1); };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
-  const generateMonthProjects = () => {
+  const generateMonthProjects = async () => {
     setCreating(true);
-    const currentProjects = getProjects({ year, month });
-    const allStores = getStores();
-    let count = 0;
-    for (const store of allStores) {
+    const currentProjects = await fetchProjects({ year, month });
+    const toCreate: Array<{ store_id: number; year: number; month: number; week_number: number; week_role: string; theme: string }> = [];
+    for (const store of stores) {
       for (const wr of WEEK_ROLES) {
         const exists = currentProjects.find(p => p.store_id === store.id && p.week_number === wr.week);
         if (!exists) {
-          createProject({ store_id: store.id, year, month, week_number: wr.week, week_role: wr.role, theme: wr.theme });
-          count++;
+          toCreate.push({ store_id: store.id, year, month, week_number: wr.week, week_role: wr.role, theme: wr.theme });
         }
       }
     }
-    setTimeout(() => {
-      loadData();
-      setCreating(false);
-      if (count > 0) alert(`${count}件のプロジェクトを生成しました`);
-      else alert('すべてのプロジェクトは既に存在します');
-    }, 0);
+    if (toCreate.length > 0) {
+      await createProjectsBulk(toCreate);
+      alert(`${toCreate.length}件のプロジェクトを生成しました`);
+    } else {
+      alert('すべてのプロジェクトは既に存在します');
+    }
+    await loadData();
+    setCreating(false);
   };
 
   const getThursdays = () => {
