@@ -51,6 +51,7 @@ export interface MusicStock {
   mood: string;
   bpm: number | null;
   suitable_scene: string;
+  drive_url: string;
   used_in: string;
   notes: string;
   created_at: string;
@@ -232,6 +233,7 @@ export function addMusicStock(data: {
   mood: string;
   bpm: number | null;
   suitable_scene: string;
+  drive_url: string;
   notes: string;
 }): MusicStock {
   ensureIds();

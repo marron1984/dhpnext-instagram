@@ -8,7 +8,7 @@ export default function MusicPage() {
   const [music, setMusic] = useState<MusicStock[]>([]);
   const [storeFilter, setStoreFilter] = useState<string>('all');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', notes: '' });
+  const [form, setForm] = useState({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', drive_url: '', notes: '' });
 
   const loadData = useCallback(() => {
     setStores(getStores());
@@ -20,7 +20,7 @@ export default function MusicPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     addMusicStock({ ...form, store_id: Number(form.store_id), bpm: form.bpm ? Number(form.bpm) : null });
-    setForm({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', notes: '' });
+    setForm({ store_id: 1, title: '', mood: '', bpm: '', suitable_scene: '', drive_url: '', notes: '' });
     setShowForm(false);
     loadData();
   };
@@ -38,6 +38,7 @@ export default function MusicPage() {
         <th className="px-4 py-2 text-left font-medium text-gray-600">雰囲気</th>
         <th className="px-4 py-2 text-left font-medium text-gray-600">BPM</th>
         <th className="px-4 py-2 text-left font-medium text-gray-600">シーン</th>
+        <th className="px-4 py-2 text-left font-medium text-gray-600">Google Drive</th>
         <th className="px-4 py-2 text-left font-medium text-gray-600">備考</th>
         <th className="px-4 py-2 w-16"></th>
       </tr></thead>
@@ -48,6 +49,7 @@ export default function MusicPage() {
             <td className="px-4 py-2">{m.mood}</td>
             <td className="px-4 py-2">{m.bpm || '—'}</td>
             <td className="px-4 py-2">{m.suitable_scene || '—'}</td>
+            <td className="px-4 py-2">{m.drive_url ? <a href={m.drive_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs">開く</a> : '—'}</td>
             <td className="px-4 py-2 text-gray-500">{m.notes || '—'}</td>
             <td className="px-4 py-2"><button onClick={() => handleDelete(m.id)} className="text-red-500 hover:text-red-700 text-xs">削除</button></td>
           </tr>
@@ -106,6 +108,10 @@ export default function MusicPage() {
             <div>
               <label className="text-xs text-gray-500 block mb-1">向いているシーン</label>
               <input type="text" value={form.suitable_scene} onChange={e => setForm({ ...form, suitable_scene: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Google Drive URL</label>
+              <input type="url" value={form.drive_url} onChange={e => setForm({ ...form, drive_url: e.target.value })} className="w-full border rounded px-3 py-2 text-sm" placeholder="https://drive.google.com/..." />
             </div>
             <div>
               <label className="text-xs text-gray-500 block mb-1">備考</label>
