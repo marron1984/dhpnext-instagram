@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { getStores, getProjects, getProject, updateProject, toggleChecklist, type Store, type Project } from '@/lib/store';
 
 export default function ProductionPage() {
@@ -9,9 +9,9 @@ export default function ProductionPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<(Project & { store: Store }) | null>(null);
   const [storeFilter, setStoreFilter] = useState<string>('all');
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
+  const now = useMemo(() => new Date(), []);
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
 
   const loadData = useCallback(() => {
     setStores(getStores());
@@ -20,9 +20,29 @@ export default function ProductionPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // 月が変わったら選択をリセット
+  useEffect(() => {
+    setSelectedId(null);
+    setDetail(null);
+  }, [year, month]);
+
   useEffect(() => {
     if (selectedId !== null) setDetail(getProject(selectedId));
   }, [selectedId, projects]);
+
+  const goToPrevMonth = () => {
+    if (month === 1) { setYear(y => y - 1); setMonth(12); }
+    else { setMonth(m => m - 1); }
+  };
+  const goToNextMonth = () => {
+    if (month === 12) { setYear(y => y + 1); setMonth(1); }
+    else { setMonth(m => m + 1); }
+  };
+  const goToToday = () => {
+    setYear(now.getFullYear());
+    setMonth(now.getMonth() + 1);
+  };
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
   const handleUpdate = (field: string, value: string) => {
     if (selectedId === null) return;
@@ -43,12 +63,27 @@ export default function ProductionPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">制作管理</h1>
-          <p className="text-gray-500 mt-1">動画構成・キャプション・ハッシュタグ・チェックリスト</p>
+          <p className="text-gray-500 mt-1">{year}年{month}月 - 動画構成・キャプション・ハッシュタグ・チェックリスト</p>
         </div>
-        <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
-          <option value="all">全店舗</option>
-          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button onClick={goToPrevMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
+              ← 前月
+            </button>
+            {!isCurrentMonth && (
+              <button onClick={goToToday} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                今月
+              </button>
+            )}
+            <button onClick={goToNextMonth} className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium text-gray-700">
+              翌月 →
+            </button>
+          </div>
+          <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="border rounded px-3 py-2 text-sm">
+            <option value="all">全店舗</option>
+            {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className="flex gap-6">
