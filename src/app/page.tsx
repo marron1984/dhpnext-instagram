@@ -6,20 +6,19 @@ import { WEEK_ROLES, WEEKLY_SCHEDULE } from '@/lib/constants';
 import { getStores, getProjects, type Store, type Project } from '@/lib/store';
 
 const DAY_LABELS = [
-  { key: 'monday_done' as const, label: '月' },
-  { key: 'tuesday_done' as const, label: '火' },
-  { key: 'wednesday_done' as const, label: '水' },
-  { key: 'thursday_done' as const, label: '木' },
+  { key: 'monday_done' as const, label: '月', desc: '初稿提出' },
+  { key: 'tuesday_done' as const, label: '火', desc: 'チェックバック' },
+  { key: 'wednesday_done' as const, label: '水', desc: '納品' },
+  { key: 'thursday_done' as const, label: '木', desc: '投稿' },
 ];
 
 const MILESTONE_LABELS = [
-  { key: 'draft_status' as const, label: '初稿' },
-  { key: 'checkback_status' as const, label: 'CB' },
-  { key: 'final_status' as const, label: '納品' },
+  { key: 'draft_status' as const, label: '初稿', step: 1 },
+  { key: 'checkback_status' as const, label: 'CB', step: 2 },
+  { key: 'final_status' as const, label: '納品', step: 3 },
 ];
 
 function calcProgressPercent(p: Project): number {
-  // 日次チェック4項目 + マイルストーン3項目 = 7項目で進捗率を算出
   let score = 0;
   if (p.monday_done) score++;
   if (p.tuesday_done) score++;
@@ -32,6 +31,17 @@ function calcProgressPercent(p: Project): number {
   if (p.final_status === 'in_progress') score += 0.5;
   if (p.final_status === 'completed') score++;
   return Math.round((score / 7) * 100);
+}
+
+function getCurrentStep(p: Project): string {
+  if (p.final_status === 'completed') return '投稿待ち';
+  if (p.final_status === 'in_progress') return '納品作業中';
+  if (p.checkback_status === 'completed') return '納品準備';
+  if (p.checkback_status === 'in_progress') return 'CB中';
+  if (p.draft_status === 'completed') return 'CB待ち';
+  if (p.draft_status === 'in_progress') return '初稿作成中';
+  if (p.monday_done) return '初稿提出済';
+  return '未着手';
 }
 
 export default function Dashboard() {
@@ -49,127 +59,170 @@ export default function Dashboard() {
   const getStatusColor = (s: string) => {
     switch (s) { case 'completed': return 'bg-green-100 text-green-800'; case 'in_progress': return 'bg-blue-100 text-blue-800'; case 'review': return 'bg-yellow-100 text-yellow-800'; default: return 'bg-gray-100 text-gray-800'; }
   };
-  const getStatusLabel = (s: string) => {
-    switch (s) { case 'completed': return '完了'; case 'in_progress': return '制作中'; case 'review': return 'レビュー中'; case 'planning': return '企画中'; default: return '未着手'; }
-  };
   const getMilestoneColor = (s: string) => {
     switch (s) { case 'completed': return 'bg-green-500'; case 'in_progress': return 'bg-blue-500'; default: return 'bg-gray-300'; }
   };
+  const getProgressBarColor = (pct: number) => {
+    if (pct === 100) return 'bg-green-500';
+    if (pct >= 70) return 'bg-blue-500';
+    if (pct >= 30) return 'bg-yellow-500';
+    return 'bg-gray-400';
+  };
 
-  // 店舗ごとの集計
-  const storeStats = stores.map(store => {
-    const sp = projects.filter(p => p.store_id === store.id);
-    const done = sp.filter(p => p.status === 'completed').length;
-    const inReview = sp.filter(p => p.status === 'review').length;
-    const inProgress = sp.filter(p => p.status === 'in_progress').length;
-    const avgProgress = sp.length ? Math.round(sp.reduce((sum, p) => sum + calcProgressPercent(p), 0) / sp.length) : 0;
-    return { store, projects: sp, done, inReview, inProgress, avgProgress };
+  // 週番号でグルーピング
+  const weekNumbers = [...new Set(projects.map(p => p.week_number))].sort((a, b) => a - b);
+
+  const weekStats = weekNumbers.map(wn => {
+    const wp = projects.filter(p => p.week_number === wn);
+    const avgPct = wp.length ? Math.round(wp.reduce((sum, p) => sum + calcProgressPercent(p), 0) / wp.length) : 0;
+    const allDone = wp.every(p => p.status === 'completed');
+    const weekRole = WEEK_ROLES.find(wr => wr.week === wn);
+    return { weekNumber: wn, projects: wp, avgPct, allDone, weekRole };
   });
+
+  // 全体の週次進捗
+  const overallPct = projects.length ? Math.round(projects.reduce((sum, p) => sum + calcProgressPercent(p), 0) / projects.length) : 0;
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">ダッシュボード</h1>
-        <p className="text-gray-500 mt-1">{year}年{month}月の進捗状況</p>
+        <p className="text-gray-500 mt-1">{year}年{month}月の週次進捗管理</p>
       </div>
 
-      {/* 全体サマリー */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200 text-center">
-          <p className="text-3xl font-bold text-gray-900">{projects.length}</p>
-          <p className="text-sm text-gray-500 mt-1">総プロジェクト</p>
+      {/* 全体進捗バー */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 p-5 mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg">月間全体進捗</h2>
+          <span className="text-2xl font-bold text-blue-600">{overallPct}%</span>
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200 text-center">
-          <p className="text-3xl font-bold text-green-600">{projects.filter(p => p.status === 'completed').length}</p>
-          <p className="text-sm text-gray-500 mt-1">完了</p>
+        <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+          <div className={`h-3 rounded-full transition-all ${getProgressBarColor(overallPct)}`} style={{ width: `${overallPct}%` }} />
         </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200 text-center">
-          <p className="text-3xl font-bold text-yellow-600">{projects.filter(p => p.status === 'review').length}</p>
-          <p className="text-sm text-gray-500 mt-1">レビュー中</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4 border border-gray-200 text-center">
-          <p className="text-3xl font-bold text-blue-600">{projects.filter(p => p.status === 'in_progress').length}</p>
-          <p className="text-sm text-gray-500 mt-1">制作中</p>
+        <div className="flex gap-6 text-xs text-gray-500">
+          <span>全 {projects.length} 件</span>
+          <span className="text-green-600 font-medium">{projects.filter(p => p.status === 'completed').length} 完了</span>
+          <span className="text-yellow-600 font-medium">{projects.filter(p => p.status === 'review').length} レビュー中</span>
+          <span className="text-blue-600 font-medium">{projects.filter(p => p.status === 'in_progress').length} 制作中</span>
+          <span className="text-gray-400">{projects.filter(p => p.status === 'planning').length} 企画中</span>
         </div>
       </div>
 
-      {/* 店舗別 詳細進捗カード */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {storeStats.map(({ store, projects: sp, done, inReview, inProgress, avgProgress }) => (
-          <div key={store.id} className="bg-white rounded-lg shadow border border-gray-200">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-lg">{store.name}</h3>
-                <p className="text-xs text-gray-500">{store.main_tone}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-blue-600">{avgProgress}%</p>
-                <p className="text-xs text-gray-500">平均進捗</p>
-              </div>
-            </div>
-            <div className="p-5">
-              {/* ステータス内訳バー */}
-              <div className="flex gap-3 text-xs mb-4">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />完了 {done}</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" />レビュー {inReview}</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />制作中 {inProgress}</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300" />企画中 {sp.length - done - inReview - inProgress}</span>
-              </div>
-              {sp.length > 0 && (
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                  <div className="flex h-2 rounded-full overflow-hidden">
-                    {done > 0 && <div className="bg-green-500" style={{ width: `${(done / sp.length) * 100}%` }} />}
-                    {inReview > 0 && <div className="bg-yellow-500" style={{ width: `${(inReview / sp.length) * 100}%` }} />}
-                    {inProgress > 0 && <div className="bg-blue-500" style={{ width: `${(inProgress / sp.length) * 100}%` }} />}
+      {/* 週別進捗カード */}
+      {weekStats.length === 0 ? (
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-12 text-center text-gray-500 mb-8">
+          プロジェクトがありません。<Link href="/calendar" className="text-blue-600 hover:underline ml-1">カレンダーから作成</Link>
+        </div>
+      ) : (
+        <div className="space-y-6 mb-8">
+          {weekStats.map(({ weekNumber, projects: wp, avgPct, allDone, weekRole }) => (
+            <div key={weekNumber} className={`bg-white rounded-lg shadow border ${allDone ? 'border-green-300' : 'border-gray-200'}`}>
+              {/* 週ヘッダー */}
+              <div className="p-5 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className={`text-lg font-bold ${allDone ? 'text-green-600' : 'text-gray-900'}`}>
+                      第{weekNumber}週
+                    </span>
+                    {weekRole && (
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{weekRole.role}</span>
+                    )}
+                    {weekRole && (
+                      <span className="text-xs text-gray-500">{weekRole.theme}</span>
+                    )}
+                    {allDone && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">全店完了</span>
+                    )}
                   </div>
+                  <span className={`text-xl font-bold ${allDone ? 'text-green-600' : 'text-blue-600'}`}>{avgPct}%</span>
                 </div>
-              )}
-              {/* 週別の詳細テーブル */}
-              {sp.length > 0 && (
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className={`h-2 rounded-full transition-all ${getProgressBarColor(avgPct)}`} style={{ width: `${avgPct}%` }} />
+                </div>
+              </div>
+
+              {/* 週スケジュールステップ */}
+              <div className="px-5 pt-4 pb-2">
+                <div className="flex items-center justify-between text-xs">
+                  {DAY_LABELS.map((d, i) => {
+                    const allChecked = wp.every(p => p[d.key]);
+                    const someChecked = wp.some(p => p[d.key]);
+                    return (
+                      <div key={d.key} className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold ${allChecked ? 'bg-green-500 text-white' : someChecked ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                            {d.label}
+                          </span>
+                          <span className={`${allChecked ? 'text-green-700 font-medium' : someChecked ? 'text-blue-700' : 'text-gray-400'}`}>
+                            {d.desc}
+                          </span>
+                        </div>
+                        {i < DAY_LABELS.length - 1 && (
+                          <div className={`w-8 h-0.5 mx-1 ${allChecked ? 'bg-green-400' : 'bg-gray-200'}`} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 店舗ごと詳細 */}
+              <div className="p-5 pt-2">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-gray-500">
-                      <th className="text-left py-1 font-medium">週</th>
-                      <th className="text-left py-1 font-medium">役割</th>
-                      {DAY_LABELS.map(d => <th key={d.key} className="text-center py-1 font-medium w-8">{d.label}</th>)}
-                      <th className="w-px py-1"><div className="w-px h-4 bg-gray-200 mx-auto" /></th>
-                      {MILESTONE_LABELS.map(m => <th key={m.key} className="text-center py-1 font-medium w-10">{m.label}</th>)}
-                      <th className="text-right py-1 font-medium w-12">進捗</th>
+                    <tr className="text-gray-500 border-b border-gray-100">
+                      <th className="text-left py-2 font-medium w-24">店舗</th>
+                      <th className="text-left py-2 font-medium w-20">現在地</th>
+                      {DAY_LABELS.map(d => <th key={d.key} className="text-center py-2 font-medium w-10">{d.label}</th>)}
+                      <th className="w-px py-2" />
+                      {MILESTONE_LABELS.map(m => <th key={m.key} className="text-center py-2 font-medium w-10">{m.label}</th>)}
+                      <th className="py-2 font-medium w-28 text-right">進捗</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {sp.map(p => {
+                  <tbody className="divide-y divide-gray-50">
+                    {wp.map(p => {
+                      const store = stores.find(s => s.id === p.store_id);
                       const pct = calcProgressPercent(p);
+                      const step = getCurrentStep(p);
                       return (
                         <tr key={p.id} className="hover:bg-gray-50">
-                          <td className="py-1.5 font-medium">W{p.week_number}</td>
-                          <td className="py-1.5"><span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${getStatusColor(p.status)}`}>{p.week_role}</span></td>
+                          <td className="py-2.5 font-medium text-gray-900">{store?.name}</td>
+                          <td className="py-2.5">
+                            <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] ${getStatusColor(p.status)}`}>{step}</span>
+                          </td>
                           {DAY_LABELS.map(d => (
-                            <td key={d.key} className="text-center py-1.5">
+                            <td key={d.key} className="text-center py-2.5">
                               <span className={`inline-block w-5 h-5 rounded-full text-[10px] leading-5 ${p[d.key] ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}`}>
                                 {p[d.key] ? '✓' : '-'}
                               </span>
                             </td>
                           ))}
-                          <td className="py-1.5"><div className="w-px h-4 bg-gray-200 mx-auto" /></td>
+                          <td className="py-2.5"><div className="w-px h-4 bg-gray-200 mx-auto" /></td>
                           {MILESTONE_LABELS.map(m => (
-                            <td key={m.key} className="text-center py-1.5">
-                              <span className={`inline-block w-2.5 h-2.5 rounded-full ${getMilestoneColor(p[m.key])}`} title={p[m.key] === 'completed' ? '完了' : p[m.key] === 'in_progress' ? '進行中' : '未着手'} />
+                            <td key={m.key} className="text-center py-2.5">
+                              <span className={`inline-block w-3 h-3 rounded-full ${getMilestoneColor(p[m.key])}`} title={p[m.key] === 'completed' ? '完了' : p[m.key] === 'in_progress' ? '進行中' : '未着手'} />
                             </td>
                           ))}
-                          <td className="text-right py-1.5 font-mono font-medium text-gray-700">{pct}%</td>
+                          <td className="py-2.5">
+                            <div className="flex items-center gap-2 justify-end">
+                              <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                                <div className={`h-1.5 rounded-full ${getProgressBarColor(pct)}`} style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="font-mono font-medium text-gray-700 w-8 text-right">{pct}%</span>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
-              )}
-              {sp.length === 0 && <p className="text-gray-400 text-center text-sm py-2">プロジェクトなし</p>}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
+      {/* 下部: 月内投稿設計 + 週次スケジュール */}
       <div className="bg-white rounded-lg shadow border border-gray-200 mb-8">
         <div className="p-5 border-b border-gray-200"><h2 className="font-bold text-lg">月内投稿設計</h2></div>
         <div className="overflow-x-auto">
@@ -214,6 +267,14 @@ export default function Dashboard() {
           </div>
           <div className="p-5 space-y-4">
             <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">週ステップ（ヘッダー丸印）</h4>
+              <div className="flex gap-3 text-xs">
+                <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-green-500" />全店完了</span>
+                <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-blue-500" />一部完了</span>
+                <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-gray-200" />未着手</span>
+              </div>
+            </div>
+            <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">日次チェック（月〜木）</h4>
               <div className="flex gap-3 text-xs">
                 <span className="flex items-center gap-1"><span className="inline-block w-5 h-5 rounded-full bg-green-500 text-white text-[10px] text-center leading-5">✓</span>完了</span>
@@ -223,18 +284,9 @@ export default function Dashboard() {
             <div>
               <h4 className="text-sm font-medium text-gray-700 mb-2">マイルストーン（初稿・CB・納品）</h4>
               <div className="flex gap-3 text-xs">
-                <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" />完了</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />進行中</span>
-                <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-gray-300" />未着手</span>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">ステータスバー</h4>
-              <div className="flex gap-3 text-xs">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500" />完了</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-500" />レビュー</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" />制作中</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300" />企画中</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-green-500" />完了</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-blue-500" />進行中</span>
+                <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-full bg-gray-300" />未着手</span>
               </div>
             </div>
           </div>
